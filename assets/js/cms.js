@@ -4,7 +4,19 @@
  A local fallback keeps the demo usable before backend setup.
 */
 const PMT_DEFAULT_CONTENT = {
-  site:{name:"Piyare Mobile Telecom",tagline:"Fast, fair aur guaranteed mobile repair aur accessories.",whatsapp:"919000000000",address:"Your Shop Address, Patna",hours:"10 AM – 8:30 PM, Mon–Sun"},
+  site:{
+    name:"Piyare Mobile Telecom",
+    tagline:"Mobile phone dealer, accessories and repair services in Dwashay, Katihar.",
+    whatsapp:"",
+    address:"Basamtpur, Dwashay, Katihar, Bihar 855114, India",
+    hours:"09:00 AM – 07:30 PM, Mon–Sun",
+    city:"Katihar",
+    state:"Bihar",
+    postalCode:"855114",
+    country:"IN",
+    categories:["Mobile Phone Dealers","Mobile Phone Cover Dealers","Ear Phone Dealers","Mobile Phone Charger Dealers","Mobile Repair"],
+    justdialUrl:"https://www.justdial.com/Katihar/Piyare-Mobile-Telecom-Dwashay/9999P6452-6452-250401125010-W1X1_BZDET"
+  },
   home:{eyebrow:"Same-day repair · Local shop",title:"Phone toota? <span>Ticket katao,</span> theek karwao.",description:"Screen, battery, charging port — sab kuch fix hota hai yahin, aapke saamne. Saath mein original accessories bhi milte hain.",primaryText:"🔧 Book a Repair",primaryLink:"repair.html",secondaryText:"🛍️ Shop Accessories",secondaryLink:"shop.html"},
   trust:[
     {icon:"⚡",title:"Same-Day Fix",text:"Most repairs in under 1 hr"},
@@ -51,3 +63,27 @@ async function loadSiteContent(){
   try{const remote=await pmtGet("content"); if(remote?.content) data=pmtDeepMerge(data,remote.content)}catch(_){}
   return data;
 }
+
+/* Dynamic LocalBusiness metadata uses the same editable profile as the CMS. */
+async function initLocalBusinessSchema(){
+  if(document.querySelector('meta[name="robots"][content*="noindex"]')) return;
+  try{
+    const data=await loadSiteContent(), s=data.site||{};
+    const schema={
+      "@context":"https://schema.org",
+      "@type":"LocalBusiness",
+      "name":s.name||"Piyare Mobile Telecom",
+      "description":s.tagline||"Mobile phone dealer, accessories and repair services in Katihar.",
+      "url":location.origin+location.pathname,
+      "image":location.origin+"/assets/logo.svg",
+      "address":{"@type":"PostalAddress","streetAddress":s.address||"","addressLocality":s.city||"Katihar","addressRegion":s.state||"Bihar","postalCode":s.postalCode||"855114","addressCountry":s.country||"IN"},
+      "openingHours":"Mo-Su 09:00-19:30",
+      "sameAs":s.justdialUrl?[s.justdialUrl]:[],
+      "areaServed":"Katihar"
+    };
+    if(s.whatsapp) schema.telephone=s.whatsapp;
+    if(Array.isArray(s.categories)&&s.categories.length) schema.knowsAbout=s.categories;
+    const tag=document.createElement("script");tag.type="application/ld+json";tag.textContent=JSON.stringify(schema);document.head.appendChild(tag);
+  }catch(_){}
+}
+document.addEventListener("DOMContentLoaded",initLocalBusinessSchema);
