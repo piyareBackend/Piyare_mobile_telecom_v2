@@ -23,7 +23,7 @@ async function pmtPost(payload){
   const token=sessionStorage.getItem("pmt-admin-token")||"";
   const r=await fetch(api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...payload,token})});
   const d=await r.json().catch(()=>({ok:false,message:"Invalid API response"}));
-  if(!r.ok||d.ok===false){if(d.message==="Unauthorized"){sessionStorage.removeItem("pmt-admin-token");location.replace("login.html");}throw Error(d.message||"API request failed");}return d;
+  if(!r.ok||d.ok===false){if(d.message==="Unauthorized"&&location.pathname.includes("/admin/")){sessionStorage.removeItem("pmt-admin-token");location.replace("login.html");}throw Error(d.message||"API request failed");}return d;
 }
 function pmtDeepMerge(a,b){if(!b)return a;for(const k of Object.keys(b)){if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k])pmtDeepMerge(a[k],b[k]);else a[k]=b[k];}return a;}
 async function loadSiteContent(){
