@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Track Repair — Piyare Mobile Telecom</title><link rel="stylesheet" href="assets/css/main.css"></head><body>
+<title>Track Mobile Repair — Piyare Mobile Telecom</title><meta name="description" content="Track your mobile repair ticket and check repair status online with Piyare Mobile Telecom."><link rel="canonical" href="https://piyare-mobile-telecom.sadab-notes-backup.workers.dev/track.html"><meta property="og:title" content="Track Mobile Repair — Piyare Mobile Telecom"><meta property="og:description" content="Check your Piyare Mobile Telecom repair ticket status online."><link rel="stylesheet" href="assets/css/main.css"></head><body>
 
 <header>
   <nav class="nav">
@@ -17,7 +17,7 @@
       <button class="cart-btn" id="cartOpen">🛒<span class="cart-count" id="cartCount">0</span></button>
     </div>
   </nav>
-</header><section class="page-hero"><div class="wrap hero-center"><div class="section-tag">Live Tracking</div><h1>Track your repair</h1><p>Enter the ticket ID supplied by the shop.</p></div></section>
+</header><section class="page-hero"><div class="wrap hero-center"><div class="section-tag">Repair Tracking</div><h1>Track your mobile repair</h1><p>Enter the ticket ID supplied by Piyare Mobile Telecom.</p></div></section>
 <section><div class="wrap"><form class="form-card" id="trackForm"><div class="field"><label>Ticket ID</label><input id="ticketId" required maxlength="40" placeholder="PMT-2026-0001"></div><button class="btn btn-blue">Track Status</button></form><div id="trackResult" style="margin-top:20px"></div></div></section>
 <script>
 trackForm.addEventListener("submit",async e=>{e.preventDefault();const id=ticketId.value.trim();if(!window.PMT_API_URL)return trackResult.innerHTML='<div class="panel"><b>API not configured.</b><p>Admin → Settings mein Apps Script API URL add karo.</p></div>';try{const r=await fetch(window.PMT_API_URL+"?action=track&ticket="+encodeURIComponent(id));const d=await r.json();trackResult.innerHTML='<div class="panel"><h3>Ticket '+escapeHtml(id)+'</h3><p>Status: <span class="badge">'+escapeHtml(d.status||"Not found")+'</span></p></div>'}catch(_){trackResult.innerHTML='<div class="panel">Unable to fetch status.</div>'}});
