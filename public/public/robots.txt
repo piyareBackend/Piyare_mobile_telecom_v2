@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /admin/
+
+Sitemap: https://piyare-mobile-telecom.sadab-notes-backup.workers.dev/sitemap.xml
