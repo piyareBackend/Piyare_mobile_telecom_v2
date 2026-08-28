@@ -1,10 +1,42 @@
 /* PMT frontend bootstrap. No secrets belong here. */
 (function(){
+  const root=document.documentElement;
   const saved=localStorage.getItem("pmt-theme");
-  const dark=saved==="dark" || (!saved && matchMedia("(prefers-color-scheme:dark)").matches);
-  document.documentElement.toggleAttribute("data-theme",dark);
-  const b=document.getElementById("themeToggle");
-  if(b){b.textContent=dark?"☀️":"🌙";b.onclick=()=>{const d=document.documentElement.hasAttribute("data-theme");document.documentElement.toggleAttribute("data-theme",!d);localStorage.setItem("pmt-theme",d?"light":"dark");b.textContent=d?"🌙":"☀️";};}
+  const prefersDark=window.matchMedia&&matchMedia("(prefers-color-scheme:dark)").matches;
+  function applyTheme(mode){
+    const dark=mode==="dark";
+    root.setAttribute("data-theme",dark?"dark":"light");
+    root.style.colorScheme=dark?"dark":"light";
+    document.querySelectorAll(".theme-toggle").forEach(b=>{
+      b.textContent=dark?"☀️":"🌙";
+      b.setAttribute("aria-pressed",String(dark));
+      b.title=dark?"Switch to light mode":"Switch to dark mode";
+    });
+  }
+  applyTheme(saved|| (prefersDark?"dark":"light"));
+  function bindThemeButtons(){
+    document.querySelectorAll(".theme-toggle").forEach(b=>{
+      if(b.dataset.themeBound)return;
+      b.dataset.themeBound="1";
+      b.onclick=()=>{
+        const next=root.getAttribute("data-theme")==="dark"?"light":"dark";
+        localStorage.setItem("pmt-theme",next);
+        applyTheme(next);
+      };
+    });
+  }
+  bindThemeButtons();
+  new MutationObserver(bindThemeButtons).observe(document.documentElement,{childList:true,subtree:true});
+  const style=document.createElement("style");
+  style.textContent=`
+    [data-theme="dark"] body{background:var(--cream);color:var(--text)}
+    [data-theme="dark"] .card-img{background:linear-gradient(135deg,#20243a,#28251d)}
+    [data-theme="dark"] .form-card,[data-theme="dark"] .upload-box{border-color:var(--line)}
+    [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{color-scheme:dark}
+    [data-theme="dark"] .panel,[data-theme="dark"] .card,[data-theme="dark"] .cms-section,[data-theme="dark"] .stat,[data-theme="dark"] .kpi{box-shadow:0 10px 28px rgba(0,0,0,.18)}
+    .brand .mark img{display:block;width:100%;height:100%;object-fit:cover}
+  `;
+  document.head.appendChild(style);
   window.escapeHtml=function(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;};
   window.PMT_API_URL=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";
 })();
