@@ -7,12 +7,14 @@
 <script src="assets/js/config.js"></script><script src="assets/js/app.js"></script><script src="assets/js/security.js"></script><script src="assets/js/analytics.js"></script><script src="assets/js/cms.js"></script><script src="assets/js/cart.js"></script><script>
 (function(){
  const grid=document.getElementById('productGrid');
+ function normalize(items){return (items||[]).map(x=>({id:String(x.id),name:x.name,cat:x.category||'Accessories',price:Number(x.price||0),old:0,icon:x.icon||'📱',stock:Number(x.stock||0),description:x.description||'',images:Array.isArray(x.images)?x.images:[]}));}
  function render(){
   grid.innerHTML=PRODUCTS.map(x=>{const image=x.images&&x.images[0]?`<img src="${escapeHtml(x.images[0])}" alt="${escapeHtml(x.name)}" loading="lazy" decoding="async">`:`<span>${escapeHtml(x.icon)}</span>`;return `<article class="card"><a class="product-link" href="product.html?id=${encodeURIComponent(x.id)}"><div class="product-card-img">${image}</div><div class="card-body"><div class="card-cat">${escapeHtml(x.cat)}</div><div class="card-name">${escapeHtml(x.name)}</div><div class="product-desc">${escapeHtml(x.description||'')}</div></div></a><div class="card-body" style="padding-top:0"><div class="card-bottom"><div class="price">₹${Number(x.price)}</div><button class="add-btn" data-id="${escapeHtml(x.id)}">+</button></div></div></article>`}).join('')||'<p>No products available right now.</p>';
   grid.querySelectorAll('[data-id]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();addToCart(b.dataset.id)});
  }
+ try{PRODUCTS=normalize(JSON.parse(localStorage.getItem('pmt-products-cache')||'[]'))||PRODUCTS;}catch(_){ }
  render();
  pmtGet('publicProducts').then(d=>{
-   if(d&&d.items){PRODUCTS=d.items.map(x=>({id:String(x.id),name:x.name,cat:x.category||'Accessories',price:Number(x.price||0),old:0,icon:x.icon||'📱',stock:Number(x.stock||0),description:x.description||'',images:Array.isArray(x.images)?x.images:[] }));render();}
+   if(d&&d.items){PRODUCTS=normalize(d.items);localStorage.setItem('pmt-products-cache',JSON.stringify(PRODUCTS));render();}
  }).catch(()=>{});
 })();</script></body></html>
