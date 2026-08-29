@@ -75,7 +75,7 @@ async function initLocalBusinessSchema(){
       "name":s.name||"Piyare Mobile Telecom",
       "description":s.tagline||"Mobile phone dealer, accessories and repair services in Katihar.",
       "url":location.origin+location.pathname,
-      "image":location.origin+"/assets/logo.svg",
+      "image":location.origin+"/assets/logo.png",
       "address":{"@type":"PostalAddress","streetAddress":s.address||"","addressLocality":s.city||"Katihar","addressRegion":s.state||"Bihar","postalCode":s.postalCode||"855114","addressCountry":s.country||"IN"},
       "openingHours":"Mo-Su 09:00-19:30",
       "sameAs":s.justdialUrl?[s.justdialUrl]:[],
