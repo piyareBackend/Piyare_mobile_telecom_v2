@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PMT Owner Control Room — Product Editor</title><link rel="stylesheet" href="../assets/css/main.css"></head>
+<body class="admin-body">
+<header class="admin-top"><b>PMT Owner Control Room</b><a href="products.html">← Products</a></header>
+<aside class="admin-sidebar"><a href="dashboard.html">Dashboard</a><a href="editor.html">Website Editor</a><a href="banners.html">Banners</a><a href="products.html">Products</a><a href="orders.html">Orders</a><a href="repairs.html">Repairs</a><a href="coupons.html">Coupons</a><a href="customers.html">Customers</a><a href="feedback.html">Feedback</a><a href="analytics.html">Analytics</a><a href="media.html">Media & Uploads</a><a href="settings.html">Settings</a><a href="security.html">Security</a></aside>
+<main class="admin-main">
+<h1 id="title">Add Product</h1><p>Dedicated product editor. No browser prompt popups.</p>
+<form id="form" class="cms-section">
+<div class="form-row"><div class="field"><label>Product name *</label><input id="name" required maxlength="100"></div><div class="field"><label>SKU</label><input id="sku" maxlength="80"></div></div>
+<div class="form-row"><div class="field"><label>Price *</label><input id="price" type="number" min="0" step="0.01" required></div><div class="field"><label>Stock *</label><input id="stock" type="number" min="0" step="1" required></div></div>
+<div class="form-row"><div class="field"><label>Minimum stock</label><input id="minimum" type="number" min="0" step="1" value="0"></div><div class="field"><label>Category</label><input id="category" value="Accessories" maxlength="60"></div></div>
+<div class="form-row"><div class="field"><label>Icon / fallback</label><input id="icon" value="📱" maxlength="8"></div><div class="field"><label>Product images (up to 4)</label><input id="images" type="file" accept="image/jpeg,image/png,image/webp" multiple></div></div>
+<div class="field full"><label>Description</label><textarea id="description" rows="7" maxlength="5000" placeholder="Write the product details customers should see."></textarea></div>
+<div id="preview" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px"></div>
+<div class="admin-actions" style="margin-top:22px"><button class="btn btn-blue" type="submit" id="save">Save Product</button><a class="btn" href="products.html">Cancel</a><span id="status" style="align-self:center"></span></div>
+</form>
+</main>
+<script src="../assets/js/config.js"></script><script src="../assets/js/app.js"></script><script src="../assets/js/admin.js"></script><script src="../assets/js/security.js"></script>
+<script>
+const id=new URLSearchParams(location.search).get('id');let existingImages=[];
+const $=x=>document.getElementById(x);
+function showStatus(text,ok=false){$('status').textContent=text;$('status').style.color=ok?'var(--green)':'var(--red)';}
+function renderPreview(urls){$('preview').innerHTML=urls.map(u=>`<div style="aspect-ratio:1;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)"><img src="${escapeHtml(u)}" alt="Product image" style="width:100%;height:100%;object-fit:contain"></div>`).join('');}
+async function uploadSelected(){const files=[...$('images').files].slice(0,4);if(!files.length)return existingImages;showStatus('Uploading images…');const urls=[];for(const f of files){if(f.size>5*1024*1024)throw Error(f.name+' is larger than 5 MB');const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(Error('Could not read '+f.name));r.readAsDataURL(f);});const d=await pmtPost({action:'uploadImage',filename:f.name,mime:f.type,base64});if(!d.url)throw Error(d.message||'Image upload failed');urls.push(d.url);}return urls;}
+async function load(){if(!Admin.auth()){location.replace('login.html');return;}if(!id)return;try{const d=await pmtGet('products'),x=(d.items||[]).find(p=>String(p.id)===String(id));if(!x)throw Error('Product not found');$('title').textContent='Edit Product';$('name').value=x.name||'';$('sku').value=x.sku||'';$('price').value=x.price??0;$('stock').value=x.stock??0;$('minimum').value=x.minimum??0;$('category').value=x.category||'Accessories';$('icon').value=x.icon||'📱';$('description').value=x.description||'';existingImages=Array.isArray(x.images)?x.images:[];renderPreview(existingImages);}catch(e){showStatus(e.message||'Could not load product');}}
+$('images').addEventListener('change',()=>{const files=[...$('images').files].slice(0,4);if(files.length)renderPreview(files.map(f=>URL.createObjectURL(f)));});
+$('form').addEventListener('submit',async e=>{e.preventDefault();$('save').disabled=true;showStatus('Saving…');try{const images=await uploadSelected();const payload={name:$('name').value.trim(),sku:$('sku').value.trim(),price:Number($('price').value),stock:Number($('stock').value),minimum:Number($('minimum').value||0),category:$('category').value.trim()||'Accessories',icon:$('icon').value.trim()||'📱',description:$('description').value.trim(),images};const d=await pmtPost({action:id?'updateProduct':'createProduct',payload:id?{...payload,id}:payload});if(!d.ok)throw Error(d.message||'Save failed');showStatus('Saved successfully.',true);setTimeout(()=>location.href='products.html',500);}catch(e){showStatus(e.message||'Save failed');$('save').disabled=false;}});
+load();
+</script>
+</body></html>
