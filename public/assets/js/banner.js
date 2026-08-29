@@ -1,14 +1,14 @@
 async function initBanners(){
  const c=document.getElementById("bannerCarousel"); if(!c)return;
- const data=await loadSiteContent(), items=(data.banners||[]).filter(x=>x.active!==false);
+ const data=await loadSiteContent(),items=(data.banners||[]).filter(x=>x.active!==false);
+ const hero=document.querySelector(".hero .wrap");
+ if(hero&&c.parentElement?.parentElement?.classList.contains("banner-wrap")){hero.appendChild(c);c.classList.add("hero-banner");c.parentElement?.parentElement?.parentElement?.remove();}
  if(!items.length){c.style.display="none";return}
- c.innerHTML=items.map((b,i)=>`<article class="banner-slide ${i===0?"show":""}" data-i="${i}" style="${b.image?`background-image:linear-gradient(90deg,rgba(27,31,59,.9),rgba(27,31,59,.35)),url('${escapeHtml(b.image)}')`:''}">
- <div class="banner-copy"><div class="section-tag" style="color:var(--amber)">Featured</div><h2>${escapeHtml(b.title)}</h2><p>${escapeHtml(b.subtitle)}</p><a class="btn btn-primary" href="${escapeHtml(b.link||'#')}">${escapeHtml(b.button||"Explore")}</a></div></article>`).join("");
- let i=0;
- const show=n=>{i=(n+items.length)%items.length;c.querySelectorAll(".banner-slide").forEach((x,j)=>x.classList.toggle("show",j===i));c.querySelector(".banner-prev")?.setAttribute("aria-label","Previous banner")};
+ const style=document.createElement("style");style.textContent=`.hero .wrap{position:relative}.hero-banner{position:relative;min-height:300px;height:100%;border-radius:18px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.35);transform:rotate(1deg);background:var(--surface);color:var(--text)}.hero-banner .banner-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .35s ease;background-size:cover;background-position:center;display:flex;align-items:flex-end;padding:28px}.hero-banner .banner-slide.show{opacity:1;visibility:visible}.hero-banner .banner-copy{max-width:92%;position:relative;z-index:2}.hero-banner .banner-copy h2{font-size:1.65rem;line-height:1.12;margin:5px 0 8px;color:#fff}.hero-banner .banner-copy p{font-size:.88rem;color:#eef0f8;margin:0 0 16px}.hero-banner .banner-prev,.hero-banner .banner-next{position:absolute;top:50%;transform:translateY(-50%);z-index:4;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.88);color:var(--indigo);font-size:1.5rem}.hero-banner .banner-prev{left:12px}.hero-banner .banner-next{right:12px}.hero-banner .banner-dots{position:absolute;z-index:4;bottom:12px;right:18px;display:flex;gap:5px}.hero-banner .banner-dots button{width:7px;height:7px;padding:0;border-radius:50%;background:rgba(255,255,255,.55)}@media(max-width:760px){.hero .wrap{grid-template-columns:1fr}.hero-banner{min-height:250px;margin-top:28px;transform:none}.hero-banner .banner-copy h2{font-size:1.35rem}.hero-banner .banner-slide{padding:22px}.hero-banner .banner-copy p{font-size:.8rem}.hero-banner .banner-prev,.hero-banner .banner-next{width:32px;height:32px}}`;
+document.head.appendChild(style);
+ c.innerHTML=items.map((b,i)=>`<article class="banner-slide ${i===0?"show":""}" data-i="${i}" style="${b.image?`background-image:linear-gradient(90deg,rgba(27,31,59,.94),rgba(27,31,59,.28)),url('${escapeHtml(b.image)}')`:`background:linear-gradient(135deg,var(--indigo-2),var(--blue))`}"><div class="banner-copy"><div class="section-tag" style="color:var(--amber)">Featured</div><h2>${escapeHtml(b.title)}</h2><p>${escapeHtml(b.subtitle)}</p><a class="btn btn-primary" href="${escapeHtml(b.link||'#')}">${escapeHtml(b.button||"Explore")}</a></div></article>`).join("");
+ let i=0;const show=n=>{i=(n+items.length)%items.length;c.querySelectorAll(".banner-slide").forEach((x,j)=>x.classList.toggle("show",j===i))};
  c.insertAdjacentHTML("beforeend",`<button class="banner-prev" aria-label="Previous banner">‹</button><button class="banner-next" aria-label="Next banner">›</button><div class="banner-dots">${items.map((_,j)=>`<button data-dot="${j}" aria-label="Banner ${j+1}"></button>`).join("")}</div>`);
- c.querySelector(".banner-prev").onclick=()=>show(i-1); c.querySelector(".banner-next").onclick=()=>show(i+1);
- c.querySelectorAll("[data-dot]").forEach(x=>x.onclick=()=>show(+x.dataset.dot));
- setInterval(()=>show(i+1),5000);
+ c.querySelector(".banner-prev").onclick=()=>show(i-1);c.querySelector(".banner-next").onclick=()=>show(i+1);c.querySelectorAll("[data-dot]").forEach(x=>x.onclick=()=>show(+x.dataset.dot));setInterval(()=>show(i+1),5000);
 }
 document.addEventListener("DOMContentLoaded",initBanners);
