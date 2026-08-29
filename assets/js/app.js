@@ -8,61 +8,45 @@
   window.escapeHtml=function(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;};
   window.PMT_API_URL=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";
 
-  // Use the uploaded PMT logo everywhere instead of the old phone emoji.
-  function logoSrc(){return "/assets/logo.png";}
-  function makeLogo(){
+  // Replace the legacy phone emoji in the actual shared DOM, not just as a visual fallback.
+  function logoUrl(){return new URL("assets/logo.png",document.baseURI).href;}
+  function logoImage(size){
     const img=document.createElement("img");
-    img.src=logoSrc();
+    img.src=logoUrl();
     img.alt="Piyare Mobile Telecom logo";
+    img.width=size; img.height=size;
     img.decoding="async";
-    img.loading="eager";
+    img.style.cssText=`width:${size}px;height:${size}px;object-fit:contain;display:block;`;
     return img;
   }
-  function applyLogo(){
+  function replaceLegacyLogo(){
     document.querySelectorAll("header .brand .mark").forEach(mark=>{
-      if(mark.querySelector("img"))return;
       mark.textContent="";
-      const img=makeLogo();
-      mark.appendChild(img);
+      mark.appendChild(logoImage(36));
     });
     document.querySelectorAll("footer .foot-brand").forEach(brand=>{
-      if(!brand.querySelector("img")){
-        const img=makeLogo();
-        img.width=28;img.height=28;
-        img.style.cssText="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px;border-radius:6px;";
-        brand.prepend(img);
-      }
-      brand.childNodes.forEach(node=>{
-        if(node.nodeType===3)node.textContent=node.textContent.replace(/^\s*📱\s*/," ");
-      });
+      const label="Piyare Mobile Telecom";
+      brand.textContent="";
+      const img=logoImage(28);
+      img.style.cssText="width:28px;height:28px;object-fit:contain;display:inline-block;vertical-align:middle;margin-right:8px;border-radius:6px;";
+      brand.appendChild(img);
+      brand.appendChild(document.createTextNode(label));
     });
-    // Replace any remaining phone emoji anywhere in rendered page content.
-    const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
-    const nodes=[];
-    while(walker.nextNode()){
-      const node=walker.currentNode;
-      if(node.nodeValue.includes("📱") && !node.parentElement.closest("script,style,noscript"))nodes.push(node);
-    }
-    nodes.forEach(node=>{
-      const parts=node.nodeValue.split("📱");
-      const frag=document.createDocumentFragment();
-      parts.forEach((part,i)=>{
-        if(part)frag.appendChild(document.createTextNode(part));
-        if(i<parts.length-1){
-          const img=makeLogo();
-          img.width=28;img.height=28;
-          img.style.cssText="width:28px;height:28px;object-fit:contain;vertical-align:middle;display:inline-block;";
-          frag.appendChild(img);
-        }
-      });
-      node.parentNode.replaceChild(frag,node);
+    document.querySelectorAll(".brand .mark, .foot-brand").forEach(el=>{
+      const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+      const remove=[];
+      while(walker.nextNode()) if(walker.currentNode.nodeValue.includes("📱")) remove.push(walker.currentNode);
+      remove.forEach(n=>n.nodeValue=n.nodeValue.replaceAll("📱",""));
     });
     let favicon=document.querySelector('link[rel="icon"]');
     if(!favicon){favicon=document.createElement("link");favicon.rel="icon";document.head.appendChild(favicon);}
-    favicon.href=logoSrc();
+    favicon.href=logoUrl();
     favicon.type="image/png";
   }
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",applyLogo);else applyLogo();
+  // Run as soon as the shared script is loaded; run again after parsing for pages whose footer/header is later inserted.
+  replaceLegacyLogo();
+  document.addEventListener("DOMContentLoaded",replaceLegacyLogo,{once:false});
+  window.addEventListener("load",replaceLegacyLogo,{once:true});
 })();
 
 async function pmtGet(action,params={}){
