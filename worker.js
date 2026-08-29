@@ -15,7 +15,9 @@ export default {
       let src;try{src=new URL(source);}catch(e){return new Response('Invalid image source',{status:400});}
       if(!['drive.google.com','lh3.googleusercontent.com'].includes(src.hostname))return new Response('Image source not allowed',{status:403});
       const width=Math.max(120,Math.min(1600,Number(url.searchParams.get('w')||900)));const height=Math.max(80,Math.min(1200,Number(url.searchParams.get('h')||900)));
-      const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:78}}});const out=new Response(response.body,response);out.headers.set('Cache-Control','public, max-age=86400, immutable');return out;
+      const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:78}}});
+      if(!response.ok)return fetch(src.toString());
+      const out=new Response(response.body,response);out.headers.set('Cache-Control','public, max-age=86400, immutable');return out;
     }
     return env.ASSETS.fetch(request);
   },
