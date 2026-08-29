@@ -39,7 +39,7 @@
   </div>
   <div class="cms-grid" style="margin-top:18px">
     <section class="cms-section"><h3>Traffic</h3><div class="chart" id="chart"></div></section>
-    <section class="cms-section"><h3>Needs attention</h3><div id="alerts">Loading…</div></section>
+    <section class="cms-section"><h3>Needs attention</h3><div id="alerts">Loading latest data…</div></section>
   </div>
   <section class="cms-section" style="margin-top:18px">
     <h3>Quick actions</h3>
@@ -56,11 +56,11 @@
 <script src="../assets/js/admin.js"></script>
 <script src="../assets/js/security.js"></script>
 <script>
-(async function(){
-  try{
-    if(window.Admin && !Admin.auth()) { location.replace('login.html'); return; }
-    const d=await pmtGet('dashboard');
-    if(!d || d.ok===false) throw Error(d?.message||'Dashboard API unavailable');
+(function(){
+  const key=typeof pmtAdminCacheKey==='function'?pmtAdminCacheKey('dashboard',{}):'pmt-admin-cache:dashboard:{}';
+  try{const c=JSON.parse(sessionStorage.getItem(key)||'null');if(c?.data)render(c.data,true);}catch(_){}
+  function render(d,cached){
+    if(!d||d.ok===false)return;
     document.getElementById('vis').textContent=d.visitors||0;
     document.getElementById('ord').textContent=d.orders||0;
     document.getElementById('rep').textContent=d.repairs||0;
@@ -69,9 +69,18 @@
     document.getElementById('alerts').innerHTML=(d.alerts||[]).map(x=>'<div class="alert">'+escapeHtml(x)+'</div>').join('')||'<div class="alert success">Nothing urgent.</div>';
     const v=d.daily||[2,5,3,7,4,8,6],m=Math.max.apply(null,v.concat([1]));
     document.getElementById('chart').innerHTML=v.map(x=>'<div class="bar" style="height:'+Math.max(5,x/m*100)+'%"></div>').join('');
-  }catch(e){
-    document.getElementById('alerts').textContent=e.message||'Dashboard could not be loaded.';
+    if(cached)document.getElementById('alerts').insertAdjacentHTML('afterbegin','<div class="hint" style="margin-bottom:8px">Refreshing latest data…</div>');
   }
+  (async function(){
+    try{
+      if(window.Admin && !Admin.auth()){ location.replace('login.html'); return; }
+      const d=await pmtGet('dashboard');
+      if(!d || d.ok===false) throw Error(d?.message||'Dashboard API unavailable');
+      render(d,false);
+    }catch(e){
+      if(!document.getElementById('vis').textContent||document.getElementById('vis').textContent==='—')document.getElementById('alerts').textContent=e.message||'Dashboard could not be loaded.';
+    }
+  })();
 })();
 </script>
 </body>
