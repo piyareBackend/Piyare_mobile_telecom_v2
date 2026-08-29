@@ -7,6 +7,38 @@
   if(b){b.textContent=dark?"☀️":"🌙";b.onclick=()=>{const d=document.documentElement.hasAttribute("data-theme");document.documentElement.toggleAttribute("data-theme",!d);localStorage.setItem("pmt-theme",d?"light":"dark");b.textContent=d?"🌙":"☀️";};}
   window.escapeHtml=function(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;};
   window.PMT_API_URL=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";
+
+  // Use the uploaded PMT logo everywhere the shared header/footer uses the old phone emoji.
+  function applyLogo(){
+    document.querySelectorAll("header .brand .mark").forEach(mark=>{
+      if(mark.querySelector("img"))return;
+      const img=document.createElement("img");
+      img.src="assets/logo.png";
+      img.alt="Piyare Mobile Telecom logo";
+      img.decoding="async";
+      img.loading="eager";
+      mark.textContent="";
+      mark.appendChild(img);
+    });
+    document.querySelectorAll("footer .foot-brand").forEach(brand=>{
+      if(brand.querySelector("img"))return;
+      const img=document.createElement("img");
+      img.src="assets/logo.png";
+      img.alt="Piyare Mobile Telecom logo";
+      img.width=28;
+      img.height=28;
+      img.decoding="async";
+      img.loading="eager";
+      img.style.cssText="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px;border-radius:6px;";
+      brand.prepend(img);
+      brand.childNodes.forEach(node=>{if(node.nodeType===3)node.textContent=node.textContent.replace(/^\s*📱\s*/," ");});
+    });
+    let favicon=document.querySelector('link[rel="icon"]');
+    if(!favicon){favicon=document.createElement("link");favicon.rel="icon";document.head.appendChild(favicon);}
+    favicon.href="assets/logo.png";
+    favicon.type="image/png";
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",applyLogo);else applyLogo();
 })();
 
 async function pmtGet(action,params={}){
