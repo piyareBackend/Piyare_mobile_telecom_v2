@@ -11,6 +11,6 @@
   upsert('meta[property="og:url"]','meta',{property:'og:url',content:location.href.split('#')[0]});
   upsert('link[rel="canonical"]','link',{rel:'canonical',href:location.href.split('#')[0]});
   if(location.pathname==='/'||/index\.html$/.test(location.pathname)){
-    const s=document.createElement('script');s.type='application/ld+json';s.textContent=JSON.stringify({"@context":"https://schema.org","@type":"LocalBusiness","name":"Piyare Mobile Telecom","url":origin,"description":desc,"telephone":"+91-7366815917","priceRange":"₹₹","sameAs":[]});document.head.appendChild(s);
+    const s=document.createElement('script');s.type='application/ld+json';s.textContent=JSON.stringify({"@context":"https://schema.org","@type":"LocalBusiness","name":"Piyare Mobile Telecom","url":origin,"description":desc,"telephone":"+91-7481997721","priceRange":"₹₹","sameAs":[]});document.head.appendChild(s);
   }
 })();
