@@ -8,8 +8,9 @@
   window.escapeHtml=function(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;};
   window.PMT_API_URL=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";
 
-  // Replace the legacy phone emoji in the actual shared DOM, not just as a visual fallback.
-  function logoUrl(){return new URL("assets/logo.png",document.baseURI).href;}
+  // Use the real PNG logo everywhere, including nested/admin pages.
+  // Root-absolute path prevents /admin/* pages from looking for /admin/assets/logo.png.
+  function logoUrl(){return "/assets/logo.png?v=3";}
   function logoImage(size){
     const img=document.createElement("img");
     img.src=logoUrl();
@@ -38,12 +39,17 @@
       while(walker.nextNode()) if(walker.currentNode.nodeValue.includes("📱")) remove.push(walker.currentNode);
       remove.forEach(n=>n.nodeValue=n.nodeValue.replaceAll("📱",""));
     });
-    let favicon=document.querySelector('link[rel="icon"]');
-    if(!favicon){favicon=document.createElement("link");favicon.rel="icon";document.head.appendChild(favicon);}
+
+    // Remove any legacy/misconfigured favicon tags and install only the real logo.png.
+    document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(el=>el.remove());
+    const favicon=document.createElement("link");
+    favicon.rel="icon";
     favicon.href=logoUrl();
     favicon.type="image/png";
+    document.head.appendChild(favicon);
+
+    document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(el=>{el.href=logoUrl();});
   }
-  // Run as soon as the shared script is loaded; run again after parsing for pages whose footer/header is later inserted.
   replaceLegacyLogo();
   document.addEventListener("DOMContentLoaded",replaceLegacyLogo,{once:false});
   window.addEventListener("load",replaceLegacyLogo,{once:true});
