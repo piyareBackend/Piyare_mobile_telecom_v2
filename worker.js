@@ -4,14 +4,24 @@ export default {
   async fetch(request, env) {
     const url=new URL(request.url);
     if(url.pathname==='/api' || url.pathname.startsWith('/api/')){
-      const target=new URL(PMT_API);url.searchParams.forEach((v,k)=>target.searchParams.set(k,v));
+      const target=new URL(PMT_API);
+      url.searchParams.forEach((v,k)=>target.searchParams.set(k,v));
       const action=url.searchParams.get('action')||'';
-      const isPublic=request.method==='GET' && ['content','publicProducts','publicCoupons','track'].includes(action);
       const cacheablePublic=request.method==='GET' && ['publicProducts','publicCoupons','track'].includes(action);
-      const init={method:request.method,headers:new Headers(request.headers),body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'follow'};
-      if(cacheablePublic){const response=await fetch(target.toString(),{...init,cf:{cacheTtl:5,cacheEverything:true}});const out=new Response(response.body,response);out.headers.set('Cache-Control','public, max-age=5, s-maxage=5');return out;}
-      if(isPublic){const response=await fetch(target.toString(),{...init,cache:'no-store'});const out=new Response(response.body,response);out.headers.set('Cache-Control','no-store, no-cache, must-revalidate');return out;}
-      const response=await fetch(target.toString(),{...init,cache:'no-store'});const out=new Response(response.body,response);out.headers.set('Cache-Control','no-store');return out;
+      const headers=new Headers();
+      const ct=request.headers.get('content-type');
+      const accept=request.headers.get('accept');
+      if(ct)headers.set('content-type',ct);
+      if(accept)headers.set('accept',accept);
+      const init={method:request.method,headers,body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'follow'};
+      try{
+        const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:5,cacheEverything:true}}:{...init,cache:'no-store'});
+        const out=new Response(response.body,response);
+        out.headers.set('Cache-Control',cacheablePublic?'public, max-age=5, s-maxage=5':'no-store, no-cache, must-revalidate');
+        return out;
+      }catch(err){
+        return new Response(JSON.stringify({ok:false,message:'API proxy failed'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+      }
     }
     if(url.pathname==='/img'){
       const source=url.searchParams.get('src');if(!source)return new Response('Missing image source',{status:400});
