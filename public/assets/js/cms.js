@@ -2,24 +2,18 @@
 const PMT_DEFAULT_CONTENT={site:{name:"Piyare Mobile Telecom",tagline:"Mobile phone dealer, accessories and repair services in Dwashay, Katihar.",whatsapp:"",address:"Basamtpur, Dwashay, Katihar, Bihar 855114, India",hours:"09:00 AM – 07:30 PM, Mon–Sun",city:"Katihar",state:"Bihar",postalCode:"855114",country:"IN",categories:["Mobile Phone Dealers","Mobile Phone Cover Dealers","Ear Phone Dealers","Mobile Phone Charger Dealers","Mobile Repair"],justdialUrl:"https://www.justdial.com/Katihar/Piyare-Mobile-Telecom-Dwashay/9999P6452-6452-250401125010-W1X1_BZDET"},home:{eyebrow:"Same-day repair · Local shop",title:"Phone toota? <span>Ticket katao,</span> theek karwao.",description:"Screen, battery, charging port — sab kuch fix hota hai yahin, aapke saamne. Saath mein original accessories bhi milte hain.",primaryText:"🔧 Book a Repair",primaryLink:"repair.html",secondaryText:"🛍️ Shop Accessories",secondaryLink:"shop.html"},trust:[{icon:"⚡",title:"Same-Day Fix",text:"Most repairs in under 1 hr"},{icon:"🛡️",title:"6-Month Warranty",text:"On every repair job"},{icon:"💯",title:"Genuine Parts",text:"No duplicate ya local parts"},{icon:"💬",title:"WhatsApp Support",text:"Order & booking updates"}],banners:[{id:"b1",title:"Big Repair Week",subtitle:"Screen & battery service starting at ₹299",button:"Book Repair",link:"repair.html",image:"",active:true},{id:"b2",title:"Accessories Sale",subtitle:"Selected accessories up to 30% off",button:"Shop Now",link:"shop.html",image:"",active:true}],gallery:[],footer:{description:"Aapke mohalle ki bharosemand mobile repair shop aur accessories store. Fast, fair aur guaranteed."}};
 
 /* app.js owns pmtGet, pmtPost, pmtDeepMerge and loadSiteContent. Do not redefine them here. */
-window.pmtLoadFreshContent=async function(){
-  try{
-    if(typeof pmtRefreshContent==="function"){
-      const fresh=await pmtRefreshContent();
-      if(fresh)return fresh;
-    }
-  }catch(_){ }
-  return loadSiteContent();
-};
+window.pmtLoadFreshContent=async function(){try{if(typeof pmtRefreshContent==="function"){const fresh=await pmtRefreshContent();if(fresh)return fresh;}}catch(_){ }return loadSiteContent();};
 
-function initLocalBusinessSchema(){
-  if(document.querySelector('meta[name="robots"][content*="noindex"]'))return;
-  loadSiteContent().then(data=>{
-    const s=data.site||{};
-    const schema={"@context":"https://schema.org","@type":"LocalBusiness","name":s.name||"Piyare Mobile Telecom","description":s.tagline||"Mobile phone dealer, accessories and repair services in Katihar.","url":location.origin+location.pathname,"image":location.origin+"/assets/logo.png","address":{"@type":"PostalAddress","streetAddress":s.address||"","addressLocality":s.city||"Katihar","addressRegion":s.state||"Bihar","postalCode":s.postalCode||"855114","addressCountry":s.country||"IN"},"openingHours":"Mo-Su 09:00-19:30","sameAs":s.justdialUrl?[s.justdialUrl]:[],"areaServed":"Katihar"};
-    if(s.whatsapp)schema.telephone=s.whatsapp;
-    if(Array.isArray(s.categories)&&s.categories.length)schema.knowsAbout=s.categories;
-    const tag=document.createElement("script");tag.type="application/ld+json";tag.textContent=JSON.stringify(schema);document.head.appendChild(tag);
-  }).catch(()=>{});
-}
+function initLocalBusinessSchema(){if(document.querySelector('meta[name="robots"][content*="noindex"]'))return;loadSiteContent().then(data=>{const s=data.site||{};const schema={"@context":"https://schema.org","@type":"LocalBusiness","name":s.name||"Piyare Mobile Telecom","description":s.tagline||"Mobile phone dealer, accessories and repair services in Katihar.","url":location.origin+location.pathname,"image":location.origin+"/assets/logo.png","address":{"@type":"PostalAddress","streetAddress":s.address||"","addressLocality":s.city||"Katihar","addressRegion":s.state||"Bihar","postalCode":s.postalCode||"855114","addressCountry":s.country||"IN"},"openingHours":"Mo-Su 09:00-19:30","sameAs":s.justdialUrl?[s.justdialUrl]:[],"areaServed":"Katihar"};if(s.whatsapp)schema.telephone=s.whatsapp;if(Array.isArray(s.categories)&&s.categories.length)schema.knowsAbout=s.categories;const tag=document.createElement("script");tag.type="application/ld+json";tag.textContent=JSON.stringify(schema);document.head.appendChild(tag);}).catch(()=>{});}
 document.addEventListener("DOMContentLoaded",initLocalBusinessSchema);
+
+/* Owner Control Room: render a real-time banner preview after every banner-editor redraw. */
+(function(){
+ function install(){
+  const host=document.getElementById('bannerEditor');if(!host)return;
+  if(!document.getElementById('pmt-banner-preview-css')){const s=document.createElement('style');s.id='pmt-banner-preview-css';s.textContent='.pmt-banner-live-preview{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#111;position:relative;min-height:180px}.pmt-banner-live-preview img{display:block;width:100%;height:210px;object-fit:cover}.pmt-banner-live-preview .pmt-preview-copy{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 14px;background:linear-gradient(transparent,rgba(0,0,0,.8));color:#fff}.pmt-banner-live-preview .pmt-preview-copy strong{display:block;font-size:1.05rem}.pmt-banner-live-preview .pmt-preview-copy span{display:block;font-size:.84rem;margin-top:3px;opacity:.9}.pmt-banner-live-preview.no-image{display:grid;place-items:center;color:#aaa;padding:24px;min-height:120px}.pmt-banner-preview-label{font-size:.78rem;color:var(--gray);margin-top:10px;font-weight:600}';document.head.appendChild(s);}
+  const refresh=()=>{host.querySelectorAll('.repeat-row').forEach((row,i)=>{if(row.querySelector('.pmt-banner-live-preview'))return;const image=row.querySelector('[data-b="image"]'),title=row.querySelector('[data-b="title"]'),subtitle=row.querySelector('[data-b="subtitle"]');const box=document.createElement('div');box.innerHTML='<div class="pmt-banner-preview-label">Live Preview — updates before publishing</div><div class="pmt-banner-live-preview no-image"><span>No banner image selected</span></div>';row.appendChild(box);const preview=box.querySelector('.pmt-banner-live-preview');const update=()=>{const src=window.pmtMediaUrl?window.pmtMediaUrl(image?.value||''):(image?.value||'');preview.innerHTML='';if(src){const img=document.createElement('img');img.src=src;img.alt=title?.value||'Banner preview';img.onerror=()=>{preview.classList.add('no-image');preview.innerHTML='<span>Image could not be loaded</span>';};preview.appendChild(img);preview.classList.remove('no-image');const copy=document.createElement('div');copy.className='pmt-preview-copy';copy.innerHTML='<strong></strong><span></span>';copy.querySelector('strong').textContent=title?.value||'Banner';copy.querySelector('span').textContent=subtitle?.value||'';preview.appendChild(copy);}else{preview.classList.add('no-image');preview.innerHTML='<span>No banner image selected</span>';}};[image,title,subtitle].forEach(x=>x&&x.addEventListener('input',update));update();});};
+  new MutationObserver(()=>requestAnimationFrame(refresh)).observe(host,{childList:true,subtree:true});refresh();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+})();
