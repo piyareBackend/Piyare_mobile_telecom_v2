@@ -13,14 +13,17 @@ export default {
       const accept=request.headers.get('accept');
       if(ct)headers.set('content-type',ct);
       if(accept)headers.set('accept',accept);
-      const init={method:request.method,headers,body:request.method==='GET'||request.method==='HEAD'?undefined:request.body,redirect:'follow'};
+      let body;
+      if(request.method!=='GET'&&request.method!=='HEAD')body=await request.arrayBuffer();
+      const init={method:request.method,headers,body,redirect:'follow'};
       try{
         const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:5,cacheEverything:true}}:{...init,cache:'no-store'});
         const out=new Response(response.body,response);
         out.headers.set('Cache-Control',cacheablePublic?'public, max-age=5, s-maxage=5':'no-store, no-cache, must-revalidate');
+        out.headers.set('X-PMT-API-Proxy','ok');
         return out;
       }catch(err){
-        return new Response(JSON.stringify({ok:false,message:'API proxy failed'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+        return new Response(JSON.stringify({ok:false,message:'API proxy failed',detail:String(err&&err.message||err)}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
       }
     }
     if(url.pathname==='/img'){
