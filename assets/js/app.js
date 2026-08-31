@@ -1,4 +1,4 @@
-/* PMT frontend bootstrap. No secrets belong here. */
+/* PMT frontend bootstrap — single shared API/content client. */
 (function(){
   const saved=localStorage.getItem("pmt-theme");
   const dark=saved==="dark" || (!saved && matchMedia("(prefers-color-scheme:dark)").matches);
@@ -6,91 +6,28 @@
   const b=document.getElementById("themeToggle");
   if(b){b.textContent=dark?"☀️":"🌙";b.onclick=()=>{const d=document.documentElement.hasAttribute("data-theme");document.documentElement.toggleAttribute("data-theme",!d);localStorage.setItem("pmt-theme",d?"light":"dark");b.textContent=d?"🌙":"☀️";};}
   window.escapeHtml=function(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;};
-  window.PMT_API_URL=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";
-
-  function logoUrl(){return "/assets/logo.png?v=4";}
-  function logoImage(size){
-    const img=document.createElement("img");img.src=logoUrl();img.alt="Piyare Mobile Telecom logo";
-    img.width=size;img.height=size;img.decoding="async";
-    img.style.cssText=`width:${size}px;height:${size}px;object-fit:contain;display:block;`;
-    return img;
-  }
-  function ensureLogoAndFavicon(){
-    document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(el=>el.remove());
-    const favicon=document.createElement("link");favicon.rel="icon";favicon.href=logoUrl();favicon.type="image/png";document.head.appendChild(favicon);
-    document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(el=>el.href=logoUrl());
-    document.querySelectorAll("header .brand .mark").forEach(mark=>{mark.replaceChildren(logoImage(36));});
-    document.querySelectorAll("footer .foot-brand").forEach(brand=>{
-      const text=brand.textContent.replace(/📱/g,"").trim()||"Piyare Mobile Telecom";
-      brand.replaceChildren(logoImage(28),document.createTextNode(" "+text));
-    });
-  }
-  function ensureMobileNav(){
-    document.querySelectorAll("header .nav").forEach(nav=>{
-      const links=nav.querySelector(".navlinks");if(!links)return;
-      let btn=nav.querySelector(".site-mobile-menu");
-      if(!btn){
-        btn=document.createElement("button");btn.className="site-mobile-menu";btn.type="button";
-        btn.setAttribute("aria-label","Open navigation");btn.setAttribute("aria-expanded","false");
-        btn.innerHTML="<span></span><span></span><span></span>";
-        const cart=nav.querySelector(".navcart");nav.insertBefore(btn,cart||null);
-      }
-      let overlay=document.querySelector(".site-menu-overlay");
-      if(!overlay){overlay=document.createElement("div");overlay.className="site-menu-overlay";document.body.appendChild(overlay);}
-      if(btn.dataset.navBound)return;
-      btn.dataset.navBound="1";
-      const close=()=>{links.classList.remove("mobile-open");overlay.classList.remove("open");btn.setAttribute("aria-expanded","false");document.body.classList.remove("site-menu-open");};
-      btn.addEventListener("click",()=>{
-        const open=!links.classList.contains("mobile-open");
-        links.classList.toggle("mobile-open",open);overlay.classList.toggle("open",open);
-        btn.setAttribute("aria-expanded",String(open));document.body.classList.toggle("site-menu-open",open);
-      });
-      overlay.addEventListener("click",close);
-      links.querySelectorAll("a").forEach(a=>a.addEventListener("click",close));
-    });
-  }
-  function installMobileNavCSS(){
-    if(document.getElementById("pmt-mobile-nav-css"))return;
-    const style=document.createElement("style");style.id="pmt-mobile-nav-css";style.textContent=`
-      .site-mobile-menu{display:none!important;background:rgba(255,255,255,.1);color:#fff;width:40px;height:40px;border-radius:10px;padding:8px;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex:0 0 auto;position:relative;z-index:130}
-      .site-mobile-menu span{display:block!important;width:21px;height:2px;background:currentColor;border-radius:2px}
-      .site-menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:110}
-      .site-menu-overlay.open{display:block}
-      @media(max-width:800px){
-        header .nav{position:relative;z-index:120}
-        header .navlinks{display:none!important;position:absolute!important;left:12px!important;right:12px!important;top:calc(100% + 8px)!important;z-index:125!important;flex-direction:column!important;gap:3px!important;padding:10px!important;background:var(--surface)!important;color:var(--text)!important;border:1px solid var(--line)!important;border-radius:14px!important;box-shadow:0 18px 45px rgba(0,0,0,.28)!important}
-        header .navlinks.mobile-open{display:flex!important}
-        header .navlinks a{display:block!important;padding:12px!important;border-radius:9px!important;color:var(--text)!important}
-        .site-mobile-menu{display:flex!important}
-        body.site-menu-open{overflow:hidden}
-      }
-    `;document.head.appendChild(style);
-  }
-  installMobileNavCSS();ensureLogoAndFavicon();ensureMobileNav();
-  document.addEventListener("DOMContentLoaded",()=>{installMobileNavCSS();ensureLogoAndFavicon();ensureMobileNav();});
-  window.addEventListener("load",ensureMobileNav,{once:true});
+  window.PMT_API_URL=window.PMT_PUBLIC_API_URL||localStorage.getItem("pmt-api-url")||"";
+  function logoUrl(){return "/assets/logo.png?v=5";}
+  function logoImage(size){const img=document.createElement("img");img.src=logoUrl();img.alt="Piyare Mobile Telecom logo";img.width=size;img.height=size;img.decoding="async";img.style.cssText=`width:${size}px;height:${size}px;object-fit:contain;display:block;`;return img;}
+  function ensureLogo(){document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(x=>x.remove());const f=document.createElement("link");f.rel="icon";f.href=logoUrl();f.type="image/png";document.head.appendChild(f);document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(x=>x.href=logoUrl());document.querySelectorAll("header .brand .mark").forEach(mark=>mark.replaceChildren(logoImage(36)));document.querySelectorAll("footer .foot-brand").forEach(brand=>{const text=brand.textContent.replace(/📱/g,"").trim()||"Piyare Mobile Telecom";brand.replaceChildren(logoImage(28),document.createTextNode(" "+text));});}
+  function installNavCSS(){if(document.getElementById("pmt-mobile-nav-css"))return;const s=document.createElement("style");s.id="pmt-mobile-nav-css";s.textContent=`.site-mobile-menu{display:none!important;background:rgba(255,255,255,.1);color:#fff;width:40px;height:40px;border:0;border-radius:10px;padding:8px;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex:0 0 auto;position:relative;z-index:130;cursor:pointer}.site-mobile-menu span{display:block!important;width:21px;height:2px;background:currentColor;border-radius:2px}.site-menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:110}.site-menu-overlay.open{display:block}@media(max-width:800px){header .nav{position:relative;z-index:120;display:flex!important;align-items:center!important;gap:8px!important}header .navlinks{display:none!important;position:fixed!important;left:12px!important;right:12px!important;top:68px!important;z-index:125!important;flex-direction:column!important;gap:3px!important;padding:10px!important;background:var(--surface)!important;color:var(--text)!important;border:1px solid var(--line)!important;border-radius:14px!important;box-shadow:0 18px 45px rgba(0,0,0,.28)!important}header .navlinks.mobile-open{display:flex!important}header .navlinks a{display:block!important;padding:13px!important;border-radius:9px!important;color:var(--text)!important;text-decoration:none!important}.site-mobile-menu{display:flex!important;order:-1!important}.site-menu-overlay.open{display:block!important}body.site-menu-open{overflow:hidden!important}}`;document.head.appendChild(s);}
+  function ensureMobileNav(){document.querySelectorAll("header .nav").forEach(nav=>{const links=nav.querySelector(".navlinks");if(!links)return;let btn=nav.querySelector(".site-mobile-menu");if(!btn){btn=document.createElement("button");btn.className="site-mobile-menu";btn.type="button";btn.setAttribute("aria-label","Open navigation");btn.setAttribute("aria-expanded","false");btn.innerHTML="<span></span><span></span><span></span>";nav.insertBefore(btn,nav.firstElementChild);}let overlay=document.querySelector(".site-menu-overlay[data-pmt-menu]");if(!overlay){overlay=document.createElement("div");overlay.className="site-menu-overlay";overlay.dataset.pmtMenu="1";document.body.appendChild(overlay);}if(btn.dataset.navBound)return;btn.dataset.navBound="1";const close=()=>{links.classList.remove("mobile-open");overlay.classList.remove("open");btn.setAttribute("aria-expanded","false");document.body.classList.remove("site-menu-open");};btn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const open=!links.classList.contains("mobile-open");links.classList.toggle("mobile-open",open);overlay.classList.toggle("open",open);btn.setAttribute("aria-expanded",String(open));document.body.classList.toggle("site-menu-open",open);});overlay.addEventListener("click",close);links.querySelectorAll("a").forEach(a=>a.addEventListener("click",close));});}
+  function init(){installNavCSS();ensureLogo();ensureMobileNav();}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();window.addEventListener("load",init,{once:true});
 })();
-
-async function pmtGet(action,params={}){
-  const api=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";if(!api)return null;
-  const u=new URL(api);u.searchParams.set("action",action);
-  const token=sessionStorage.getItem("pmt-admin-token")||"";if(token)u.searchParams.set("token",token);
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u,{credentials:"omit"});const d=await r.json().catch(()=>({ok:false,message:"Invalid API response"}));
-  if(d.ok===false&&d.message==="Unauthorized"){sessionStorage.removeItem("pmt-admin-token");if(location.pathname.includes("/admin/")&&!location.pathname.endsWith("login.html"))location.replace("login.html");}
-  if(!r.ok)throw Error("API request failed");return d;
-}
-async function pmtPost(payload){
-  const api=localStorage.getItem("pmt-api-url")||window.PMT_PUBLIC_API_URL||"";if(!api)throw Error("Apps Script API URL is not configured.");
-  const token=sessionStorage.getItem("pmt-admin-token")||"";
-  const r=await fetch(api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...payload,token})});
-  const d=await r.json().catch(()=>({ok:false,message:"Invalid API response"}));
-  if(!r.ok||d.ok===false){if(d.message==="Unauthorized"){sessionStorage.removeItem("pmt-admin-token");location.replace("login.html");}throw Error(d.message||"API request failed");}return d;
-}
+const PMT_ADMIN_CACHE_TTL=10000,PMT_REQUEST_TIMEOUT=12000,PMT_CONTENT_CACHE_KEY="pmt-content-cache-v3",PMT_CONTENT_TTL=60000;
+function pmtApi(){return window.PMT_PUBLIC_API_URL||localStorage.getItem("pmt-api-url")||"";}
+function pmtAdminCacheKey(action,params){return "pmt-admin-cache:"+action+":"+JSON.stringify(params||{});}
+function pmtClearAdminCache(){try{Object.keys(sessionStorage).filter(k=>k.startsWith("pmt-admin-cache:")).forEach(k=>sessionStorage.removeItem(k));}catch(_){} }
+async function pmtFetch(url,options={},retry=true){const ctl=new AbortController();const timer=setTimeout(()=>ctl.abort(),PMT_REQUEST_TIMEOUT);try{return await fetch(url,{...options,signal:ctl.signal,cache:options.cache||"no-store"});}catch(e){if(retry&&!ctl.signal.aborted&&options.method!=="POST")return pmtFetch(url,options,false);throw e;}finally{clearTimeout(timer);}}
+async function pmtGet(action,params={}){const api=pmtApi();if(!api)return null;const isAdminRead=["dashboard","analytics","homepage","products","orders","repairs","coupons","reviews","notifications","lowStock","users","feedback","activity","customers"].includes(action);const key=isAdminRead?pmtAdminCacheKey(action,params):null;if(key){try{const c=JSON.parse(sessionStorage.getItem(key)||"null");if(c&&Date.now()-Number(c.ts)<PMT_ADMIN_CACHE_TTL)return c.data;}catch(_){} }const u=new URL(api,location.origin);u.searchParams.set("action",action);const token=sessionStorage.getItem("pmt-admin-token")||"";if(token)u.searchParams.set("token",token);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));const r=await pmtFetch(u.toString(),{credentials:"omit"});const d=await r.json().catch(()=>({ok:false,message:"Invalid API response"}));if(d.ok===false&&d.message==="Unauthorized"){sessionStorage.removeItem("pmt-admin-token");if(location.pathname.includes("/admin/")&&!location.pathname.endsWith("login.html"))location.replace("login.html");}if(!r.ok)throw Error(d.message||"API request failed");if(key&&d.ok!==false){try{sessionStorage.setItem(key,JSON.stringify({ts:Date.now(),data:d}));}catch(_){} }return d;}
+async function pmtPost(payload){const api=pmtApi();if(!api)throw Error("Shop API is not configured.");const token=sessionStorage.getItem("pmt-admin-token")||"";const r=await pmtFetch(api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...payload,token})},false);const d=await r.json().catch(()=>({ok:false,message:"Invalid API response"}));if(!r.ok||d.ok===false){if(d.message==="Unauthorized"){sessionStorage.removeItem("pmt-admin-token");if(location.pathname.includes("/admin/"))location.replace("login.html");}throw Error(d.message||"API request failed");}pmtClearAdminCache();return d;}
 function pmtDeepMerge(a,b){if(!b)return a;for(const k of Object.keys(b)){if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&a[k])pmtDeepMerge(a[k],b[k]);else a[k]=b[k];}return a;}
-async function loadSiteContent(){
-  const local=JSON.parse(localStorage.getItem("pmt-content")||"null");
-  let data=local?pmtDeepMerge(structuredClone(PMT_DEFAULT_CONTENT),local):structuredClone(PMT_DEFAULT_CONTENT);
-  try{const remote=await pmtGet("content");if(remote?.content)data=pmtDeepMerge(data,remote.content);}catch(_){ }
-  return data;
-}
+function pmtReadContentCache(){try{const c=JSON.parse(localStorage.getItem(PMT_CONTENT_CACHE_KEY)||"null");return c?.content||null;}catch(_){return null;}}
+let PMT_CONTENT_DATA=null,PMT_CONTENT_REFRESH=null;
+function pmtGetInitialContent(){if(PMT_CONTENT_DATA)return PMT_CONTENT_DATA;const cached=pmtReadContentCache()||JSON.parse(localStorage.getItem("pmt-content")||"null");PMT_CONTENT_DATA=cached?pmtDeepMerge(structuredClone(PMT_DEFAULT_CONTENT),cached):structuredClone(PMT_DEFAULT_CONTENT);return PMT_CONTENT_DATA;}
+async function pmtRefreshContent(){if(PMT_CONTENT_REFRESH)return PMT_CONTENT_REFRESH;PMT_CONTENT_REFRESH=(async()=>{try{const remote=await pmtGet("content");if(remote?.content){PMT_CONTENT_DATA=pmtDeepMerge(structuredClone(PMT_DEFAULT_CONTENT),remote.content);localStorage.setItem(PMT_CONTENT_CACHE_KEY,JSON.stringify({ts:Date.now(),content:remote.content}));window.dispatchEvent(new CustomEvent("pmt-content-updated"));}}catch(_){}return PMT_CONTENT_DATA;})().finally(()=>{PMT_CONTENT_REFRESH=null;});return PMT_CONTENT_REFRESH;}
+async function pmtLoadFreshContent(){await pmtRefreshContent();return pmtGetInitialContent();}
+function loadSiteContent(){const data=pmtGetInitialContent();let stale=true;try{const c=JSON.parse(localStorage.getItem(PMT_CONTENT_CACHE_KEY)||"null");stale=!c?.ts||Date.now()-Number(c.ts)>PMT_CONTENT_TTL;}catch(_){}if(stale)pmtRefreshContent();return Promise.resolve(data);}
+function pmtMediaUrl(url){const s=String(url||"");if(!s)return "";try{const u=new URL(s,location.origin);if(u.hostname==="drive.google.com")return location.origin+"/img?src="+encodeURIComponent(s);return s;}catch(_){return s;}}
+window.pmtMediaUrl=pmtMediaUrl;
