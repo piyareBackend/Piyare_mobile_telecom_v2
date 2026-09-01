@@ -1,5 +1,17 @@
 const PMT_API='https://script.google.com/macros/s/AKfycbwstzcqUNbrxIV-4cxgmi_s7Yp-JYGO4ozHwwascfG4c3dr5mAsxQatD_6fpfxruu4/exec';
 
+function canonicalDriveSource(value){
+  const s=String(value||'').trim();if(!s)return '';
+  try{
+    const u=new URL(s);
+    if(u.hostname==='drive.google.com'){
+      const file=u.pathname.match(/\/file\/d\/([^/]+)/);if(file)return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(file[1])}`;
+      const id=u.searchParams.get('id');if(id)return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`;
+    }
+    return s;
+  }catch(_){return s;}
+}
+
 export default {
   async fetch(request, env) {
     const url=new URL(request.url);
@@ -23,16 +35,16 @@ export default {
         out.headers.set('X-PMT-API-Proxy','ok');
         return out;
       }catch(err){
-        return new Response(JSON.stringify({ok:false,message:'API proxy failed',detail:String(err&&err.message||err)}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+        return new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'API_PROXY_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
       }
     }
     if(url.pathname==='/img'){
-      const source=url.searchParams.get('src');if(!source)return new Response('Missing image source',{status:400});
-      let src;try{src=new URL(source);}catch(e){return new Response('Invalid image source',{status:400});}
-      if(!['drive.google.com','lh3.googleusercontent.com'].includes(src.hostname))return new Response('Image source not allowed',{status:403});
+      const source=url.searchParams.get('src');if(!source)return new Response(JSON.stringify({ok:false,error:'Missing image source',code:'IMAGE_SOURCE_MISSING'}),{status:400,headers:{'Content-Type':'application/json'}});
+      let src;try{src=new URL(canonicalDriveSource(source));}catch(_){return new Response(JSON.stringify({ok:false,error:'Invalid image source',code:'IMAGE_SOURCE_INVALID'}),{status:400,headers:{'Content-Type':'application/json'}});}
+      if(!['drive.google.com','drive.usercontent.google.com','lh3.googleusercontent.com'].includes(src.hostname))return new Response(JSON.stringify({ok:false,error:'Image source not allowed',code:'IMAGE_SOURCE_NOT_ALLOWED'}),{status:403,headers:{'Content-Type':'application/json'}});
       const width=Math.max(120,Math.min(1600,Number(url.searchParams.get('w')||1200)));const height=Math.max(80,Math.min(1200,Number(url.searchParams.get('h')||900)));
-      const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:82}}});
-      if(!response.ok)return fetch(src.toString(),{cache:'no-store'});
+      const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:82}},redirect:'follow'});
+      if(!response.ok)return new Response(JSON.stringify({ok:false,error:'Drive image unavailable',code:'IMAGE_FETCH_FAILED'}),{status:response.status||502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
       const out=new Response(response.body,response);out.headers.set('Cache-Control','public, max-age=86400, immutable');return out;
     }
     return env.ASSETS.fetch(request);
