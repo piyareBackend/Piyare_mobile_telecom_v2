@@ -1,7 +1,7 @@
-# Piyare Mobile Telecom v5.1 — Production setup
+# Piyare Mobile Telecom — production setup
 
 ## Important
-This package is production-oriented, but deployment must happen inside YOUR Google account. I cannot deploy into your Drive/Sheets account from this chat.
+This package preserves the existing v5.1/v5.2 architecture: static multipage frontend, Cloudflare Worker proxy, Google Apps Script, Google Sheets and Google Drive.
 
 ## 1. Create the Google Sheet
 Create one empty Google Sheet and copy its spreadsheet ID.
@@ -13,8 +13,16 @@ Create one empty Google Sheet and copy its spreadsheet ID.
 Copy both folder IDs.
 
 ## 3. Apps Script
-Open the Sheet → Extensions → Apps Script.
-Replace the script with `backend/Code.gs`.
+The backend is a multi-file Apps Script project. Do **not** deploy only `backend/Code.gs`.
+
+Add the existing backend files to the same Apps Script project, in this order:
+1. `backend/Code.gs`
+2. `backend/Code_v52_patch.gs`
+3. `backend/Code_v52_routes.gs`
+4. `backend/ZZ_HardDelete.gs`
+5. `backend/ZZ_ProductFix.gs`
+
+`ZZ_ProductFix.gs` is the final product-system override. It keeps the existing authentication, Sheets/Drive storage and API architecture while fixing the product schema, five-image limit, image settings, variants, public product contract, structured errors and permanent product deletion.
 
 Run this function once from Apps Script:
 
@@ -22,22 +30,25 @@ Run this function once from Apps Script:
 
 Use a strong unique password of at least 10 characters. Do not put it into the website.
 
-The function creates the required sheets automatically.
+The function creates the required sheets automatically. Existing product rows and Drive files are preserved.
 
 ## 4. Deploy API
 Deploy → New deployment → Web app.
 - Execute as: Me
 - Access: Anyone
 
-Copy the `/exec` URL.
-
-The public website uses GET only for public content/repair tracking. Admin GET endpoints require a valid session token. Admin writes require a valid session and server-side role authorization.
+Copy the `/exec` URL. The Cloudflare Worker already proxies the browser-facing `/api` route to this server-side URL.
 
 ## 5. Website API URL
-Open `/admin/login.html`, paste the `/exec` URL and sign in.
+The public website uses `/api`; do not hard-code the Apps Script URL into frontend files.
 
 ## 6. Static hosting
-Upload the website files to your hosting provider. Do NOT upload a separate `.env` containing secrets.
+The repository uses the existing Cloudflare Worker configuration. `wrangler.jsonc` serves `./public` as the asset directory and `worker.js` handles `/api` and `/img`.
+
+Current repository canonical/live URL recorded by the existing product pages:
+`https://piyare-mobile-telecom.sadab-notes-backup.workers.dev`
+
+Do not change the domain, route structure or deployment configuration unless a production bug requires it.
 
 ## 7. Security checklist before launch
 - Keep the backup folder private.
@@ -45,13 +56,12 @@ Upload the website files to your hosting provider. Do NOT upload a separate `.en
 - Do not publish the Apps Script source.
 - Do not put Drive IDs, Sheet IDs, passwords or WhatsApp API keys in frontend JS.
 - Use HTTPS hosting.
-- Use a custom domain if available.
 - Change the owner password after initial setup.
 - Create staff accounts from Control Room instead of sharing the owner password.
 - Test login, logout, session expiry, upload, backup and restore before accepting real orders.
 
 ## WhatsApp automation
-The v5 control room records notification events. Actual automated WhatsApp messages require a WhatsApp Business API/provider account. Store its credentials only in Apps Script Properties and call the provider from Apps Script. Never put the provider token in HTML/JS.
+The control room records notification events. Actual automated WhatsApp messages require a WhatsApp Business API/provider account. Store credentials only in Apps Script Properties and call the provider from Apps Script. Never put provider tokens in HTML/JS.
 
 ## 8. Automatic backups and low-stock alerts
 After `setupPMT(...)`, run `installProductionTriggers()` once in Apps Script. This creates:
@@ -60,4 +70,4 @@ After `setupPMT(...)`, run `installProductionTriggers()` once in Apps Script. Th
 
 Optional owner email alerts use Script Property `PMT_ALERT_EMAIL`.
 
-Optional WhatsApp automation uses `PMT_WA_WEBHOOK_URL` as a server-side webhook. The provider/API credentials must stay server-side. The webhook receives `{phone,message}`. If you do not configure it, notifications remain inside the Control Room and optional owner email.
+Optional WhatsApp automation uses `PMT_WA_WEBHOOK_URL` as a server-side webhook. The provider/API credentials must stay server-side.
