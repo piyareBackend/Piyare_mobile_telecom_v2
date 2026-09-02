@@ -33,9 +33,9 @@ export default {
       if(request.method!=='GET'&&request.method!=='HEAD')body=await request.arrayBuffer();
       const init={method:request.method,headers,body,redirect:'follow'};
       try{
-        const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:5,cacheEverything:true}}:{...init,cache:'no-store'});
+        const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:120,cacheEverything:true}}:{...init,cache:'no-store'});
         const out=new Response(response.body,response);
-        out.headers.set('Cache-Control',cacheablePublic?'public, max-age=5, s-maxage=5':'no-store, no-cache, must-revalidate');
+        out.headers.set('Cache-Control',cacheablePublic?'public, max-age=120, s-maxage=120':'no-store, no-cache, must-revalidate');
         out.headers.set('X-PMT-API-Proxy','ok');
         return out;
       }catch(err){
