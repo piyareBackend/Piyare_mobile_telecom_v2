@@ -21,10 +21,12 @@ function sha_(text){return Utilities.base64EncodeWebSafe(Utilities.computeDigest
 function token_(){return Utilities.getUuid().replace(/-/g,"")+Utilities.getUuid().replace(/-/g,"");}
 function auth_(token){if(!token||String(token).length<40)return null;const raw=CacheService.getScriptCache().get("session_"+token);if(!raw)return null;try{return JSON.parse(raw);}catch(e){return null;}}
 function logout_(token){CacheService.getScriptCache().remove("session_"+token);return J({ok:true});}
-function safeStatus_(sheet,status){const maps={Orders:["Pending","Confirmed","Processing","Shipped","Delivered","Cancelled","Completed"],Repairs:["Pending","Received","Diagnosing","Repairing","Ready","Delivered","Cancelled","Completed"]};const a=maps[sheet]||[];return a.indexOf(String(status))>=0?String(status):"";}
+function safeStatus_(sheet,status){const maps={Orders:["Pending","Confirmed","Rejected","Processing","Shipped","Delivered","Cancelled","Completed"],Repairs:["Pending","Received","Diagnosing","Repairing","Ready","Delivered","Cancelled","Completed"]};const a=maps[sheet]||[];return a.indexOf(String(status))>=0?String(status):"";}
 function doGet(e){
   const a=clean_(e&&e.parameter?e.parameter.action:"",60),p=e&&e.parameter?e.parameter:{};
   try{
+    if(a==="acceptOrder")return processOrderAction_(p,"accept");
+    if(a==="rejectOrder")return processOrderAction_(p,"reject");
     if(a==="content")return content_();
     if(a==="track")return track_(clean_(p.ticket,40));
     if(a==="publicProducts")return publicProducts_();
@@ -41,6 +43,58 @@ function doGet(e){
     return J({ok:true,service:"PMT Owner API",version:"5.1"});
   }catch(err){auditSafe_("get_error",String(err&&err.message||err));return J({ok:false,message:"Server error"});}
 }
+function processOrderAction_(p,action){
+  const id=clean_(p&&p.id,120),providedToken=clean_(p&&p.token,200);
+  if(!id||!providedToken)return orderActionPage_("Invalid order link","The order link is missing required information.");
+  const s=S("Orders"),ps=S("Products");
+  if(!s||!ps)return orderActionPage_("Service unavailable","Please try again later.");
+  const lock=LockService.getScriptLock();let locked=false;
+  try{
+    lock.waitLock(10000);locked=true;
+    const rows=s.getDataRange().getValues();let rowIndex=-1,row=null;
+    for(let i=1;i<rows.length;i++)if(String(rows[i][0])===id){rowIndex=i+1;row=rows[i];break;}
+    if(rowIndex<0)return orderActionPage_("Order not found","This order could not be found.");
+    const status=String(row[7]||"Pending"),storedToken=String(row[8]||"");
+    if(status!=="Pending")return orderActionPage_("This order was already processed","Current status: "+status);
+    if(!storedToken||storedToken!==providedToken)return orderActionPage_("Invalid order link","This order link is invalid or has expired.");
+    if(action==="accept"){
+      s.getRange(rowIndex,8).setValue("Confirmed");
+      s.getRange(rowIndex,9).setValue("");
+      auditSafe_("order_accept",id);
+      return orderActionPage_("Order Accepted","Order "+id+" has been confirmed.");
+    }
+    if(action==="reject"){
+      let items=[];
+      try{items=JSON.parse(String(row[4]||"[]"));}catch(err){return orderActionPage_("Order data error","The order could not be safely processed.");}
+      const productRows=ps.getDataRange().getValues(),productMap={};
+      for(let i=1;i<productRows.length;i++)productMap[String(productRows[i][0])]={row:i+1,stock:Number(productRows[i][4]||0)};
+      const restore={};
+      for(const item of items){
+        const pid=String(item&&item.id||""),product=productMap[pid],qty=Math.max(1,Math.min(99,Number(item&&item.qty)||1));
+        if(!product)return orderActionPage_("Product unavailable","The order could not be rejected safely because a product record is missing.");
+        restore[pid]=(restore[pid]||0)+qty;
+      }
+      Object.keys(restore).forEach(pid=>{
+        const product=productMap[pid];
+        ps.getRange(product.row,5).setValue(product.stock+restore[pid]);
+        ps.getRange(product.row,7).setValue(now_());
+      });
+      s.getRange(rowIndex,8).setValue("Rejected");
+      s.getRange(rowIndex,9).setValue("");
+      auditSafe_("order_reject",id);
+      return orderActionPage_("Order Rejected","Order "+id+" has been rejected and stock has been restored.");
+    }
+    return orderActionPage_("Invalid action","This order link contains an invalid action.");
+  }catch(err){
+    auditSafe_("order_action_error",String(err&&err.message||err));
+    return orderActionPage_("Server error","The order could not be processed. Please try again.");
+  }finally{if(locked)lock.releaseLock();}
+}
+function orderActionPage_(title,message){
+  const safeTitle=htmlEscape_(title),safeMessage=htmlEscape_(message);
+  return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;padding:24px;display:flex;min-height:100vh;align-items:center;justify-content:center;box-sizing:border-box}.card{background:#fff;width:100%;max-width:480px;padding:28px;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);box-sizing:border-box;text-align:center}h1{font-size:24px;margin:0 0 14px;color:#111827}p{font-size:16px;line-height:1.5;color:#4b5563;margin:0}</style></head><body><div class="card"><h1>'+safeTitle+'</h1><p>'+safeMessage+'</p></div></body></html>').setTitle("PMT Order");
+}
+function htmlEscape_(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function doPost(e){
   let b={};try{b=JSON.parse((e.postData&&e.postData.contents)||"{}");}catch(err){return J({ok:false,message:"Invalid request"});}
   const a=clean_(b.action,60);
@@ -80,7 +134,7 @@ function login_(username,password){
   return J({ok:true,token:t,user:{name:String(user[4]),role:String(user[5])},expiresIn:CFG.SESSION_SECONDS});
 }
 function content_(){const s=S("SiteContent");if(!s)return J({ok:true,content:{}});const r=s.getDataRange().getValues(),o={};for(let i=1;i<r.length;i++)if(r[i][0]){try{o[r[i][0]]=JSON.parse(r[i][1]);}catch(e){o[r[i][0]]=String(r[i][1]);}}return J({ok:true,content:o});}
-function saveContent_(c,session){const s=S("SiteContent");if(!s)return J({ok:false,message:"SiteContent sheet missing"});const allowed=["site","home","trust","banners","footer","seo"];const r=s.getDataRange().getValues(),map={};for(let i=1;i<r.length;i++)map[String(r[i][0])]=i+1;Object.keys(c).filter(k=>allowed.indexOf(k)>=0).forEach(k=>{const v=JSON.stringify(c[k]);if(v.length>30000)throw Error("Content block too large");map[k]?s.getRange(map[k],2).setValue(v):s.appendRow([k,v]);});audit_("content_edit",session.username);return J({ok:true});}
+function saveContent_(c,session){const s=S("SiteContent");if(!s)return J({ok:false,message:"SiteContent sheet missing"});const allowed=["site","home","trust","banners","footer","seo"],r=s.getDataRange().getValues(),map={};for(let i=1;i<r.length;i++)map[String(r[i][0])]=i+1;Object.keys(c).filter(k=>allowed.indexOf(k)>=0).forEach(k=>{const v=JSON.stringify(c[k]);if(v.length>30000)throw Error("Content block too large");map[k]?s.getRange(map[k],2).setValue(v):s.appendRow([k,v]);});audit_("content_edit",session.username);return J({ok:true});}
 function publicRate_(kind,key){const c=CacheService.getScriptCache(),k="pub_"+kind+"_"+Utilities.base64EncodeWebSafe(String(key||"unknown")).slice(0,80);if(c.get(k))return false;c.put(k,"1",CFG.PUBLIC_RATE_SECONDS);return true;}
 function createRepair_(p){p=p||{};const ph=clean_(p.phone,10);if(!phone_(ph))return J({ok:false,message:"Invalid phone"});if(!publicRate_("repair",ph))return J({ok:false,message:"Please wait before submitting again."});const s=S("Repairs");if(!s)return J({ok:false,message:"Service unavailable"});const id="PMT-"+new Date().getFullYear()+"-"+Utilities.getUuid().slice(0,8).toUpperCase();s.appendRow([id,now_(),clean_(p.name,80),ph,clean_(p.device,100),clean_(p.issue,500),clean_(p.notes,1000),"Pending","",""]);notification_("repair_received","Repair request "+id+" received",ph);auditSafe_("repair_create",id);return J({ok:true,ticket:id,message:"Repair request received"});}
 function createFeedback_(p){p=p||{};const msg=clean_(p.message,1000),rating=Number(p.rating||5);if(msg.length<2||rating<1||rating>5)return J({ok:false,message:"Invalid feedback"});const ph=clean_(p.phone,10);if(ph&&!phone_(ph))return J({ok:false,message:"Invalid phone"});if(!publicRate_("feedback",ph||"anon"))return J({ok:false,message:"Please wait before submitting again."});const s=S("Feedback");if(!s)return J({ok:false,message:"Service unavailable"});s.appendRow([Utilities.getUuid(),now_(),clean_(p.name||"Customer",80),ph,rating,msg,"New"]);notification_("feedback","New customer feedback received");return J({ok:true,message:"Feedback received"});}
@@ -93,14 +147,14 @@ function createOrder_(p){
     const rows=ps.getDataRange().getValues(),map={};for(let i=1;i<rows.length;i++)map[String(rows[i][0])]={row:i+1,name:String(rows[i][1]),price:Number(rows[i][3]||0),stock:Number(rows[i][4]||0)};
     let total=0,cleanItems=[];for(const it of items){const x=map[String(it.id)];const q=Math.max(1,Math.min(99,Number(it.qty)||1));if(!x)return J({ok:false,message:"Product not found: "+clean_(it.id,80)});if(x.stock<q)return J({ok:false,message:x.name+" is out of stock"});total+=x.price*q;cleanItems.push({id:String(it.id),name:x.name,qty:q,price:x.price});}
     const coupon=clean_(p.coupon,40);let discount=0;if(coupon){const cs=S("Coupons");if(cs){const cr=cs.getDataRange().getValues();for(let i=1;i<cr.length;i++){if(String(cr[i][1]).toUpperCase()===coupon.toUpperCase()&&cr[i][5]!==false){const exp=cr[i][4]?new Date(cr[i][4]):null;if(!exp||isNaN(exp.getTime())||exp>=new Date()){const type=String(cr[i][2]||"percent");const val=Number(cr[i][3]||0);discount=type.toLowerCase()==="flat"?Math.min(val,total):Math.min(Math.round(total*val/100),total);}break;}}}}
-    const finalTotal=Math.max(total-discount,0),id="PMT-ORD-"+new Date().getFullYear()+"-"+Utilities.getUuid().slice(0,8).toUpperCase();os.appendRow([id,now_(),name,ph,JSON.stringify(cleanItems),finalTotal,"WhatsApp","Pending"]);
+    const finalTotal=Math.max(total-discount,0),id="PMT-ORD-"+new Date().getFullYear()+"-"+Utilities.getUuid().slice(0,8).toUpperCase(),actionToken=token_();os.appendRow([id,now_(),name,ph,JSON.stringify(cleanItems),finalTotal,"WhatsApp","Pending",actionToken]);
     for(const it of cleanItems){const x=map[it.id];ps.getRange(x.row,5).setValue(Math.max(0,x.stock-it.qty));ps.getRange(x.row,7).setValue(now_());}
-    upsertCustomer_(name,ph);notification_("order_received","Order "+id+" received",ph);auditSafe_("order_create",id);return J({ok:true,id:id,total:finalTotal,discount:discount,message:"Order received"});
+    upsertCustomer_(name,ph);notification_("order_received","Order "+id+" received",ph,id,actionToken);auditSafe_("order_create",id);return J({ok:true,id:id,total:finalTotal,discount:discount,message:"Order received"});
   }catch(err){return J({ok:false,message:"Server error"});}
   finally{if(locked)lock.releaseLock();}
 }
 function analyticsEvent_(b){const event=clean_(b.event,60),path=clean_(b.path,200);if(!event||!publicRate_("analytics",event+path))return;const s=S("Analytics");if(s)s.appendRow([now_(),event,path,JSON.stringify(b.meta||{}).slice(0,1000)]);}
-function analytics_(){const s=S("Analytics");let c={};if(s){const r=s.getDataRange().getValues();for(let i=1;i<r.length;i++){const e=String(r[i][1]);c[e]=(c[e]||0)+1;}}const orders=S("Orders"),repairs=S("Repairs");let orderCount=0,repairCount=0,revenue=0;if(orders){const r=orders.getDataRange().getValues();orderCount=Math.max(0,r.length-1);for(let i=1;i<r.length;i++)revenue+=Number(r[i][5]||0);}if(repairs)repairCount=Math.max(0,repairs.getLastRow()-1);const feedback=S("Feedback")?Math.max(0,S("Feedback").getLastRow()-1):0;const low=moduleData_("Products",x=>({name:String(x[1]),stock:Number(x[4]||0),minimum:Number(x[5]||0)})).filter(x=>x.stock<=x.minimum);return J({ok:true,visitors:c.page_view||0,pageViews:c.page_view||0,shopClicks:c.shop_click||0,repairLeads:c.repair_submit||0,whatsappClicks:c.whatsapp_click||0,feedback,orders:orderCount,repairs:repairCount,revenue,alerts:low.slice(0,10).map(x=>x.name+" is low: "+x.stock+" left"),events:Object.keys(c).map(k=>({name:k,count:c[k]})),daily:[c.page_view||0,c.shop_click||0,c.repair_submit||0,c.whatsapp_click||0]});}
+function analytics_(){const s=S("Analytics");let c={};if(s){const r=s.getDataRange().getValues();for(let i=1;i<r.length;i++){const e=String(r[i][1]);c[e]=(c[e]||0)+1;}}const orders=S("Orders"),repairs=S("Repairs");let orderCount=0,repairCount=0,revenue=0;if(orders){const r=orders.getDataRange().getValues();orderCount=Math.max(0,r.length-1);for(let i=1;i<r.length;i++)if(String(r[i][7]||"Pending")==="Confirmed")revenue+=Number(r[i][5]||0);}if(repairs)repairCount=Math.max(0,repairs.getLastRow()-1);const feedback=S("Feedback")?Math.max(0,S("Feedback").getLastRow()-1):0;const low=moduleData_("Products",x=>({name:String(x[1]),stock:Number(x[4]||0),minimum:Number(x[5]||0)})).filter(x=>x.stock<=x.minimum);return J({ok:true,visitors:c.page_view||0,pageViews:c.page_view||0,shopClicks:c.shop_click||0,repairLeads:c.repair_submit||0,whatsappClicks:c.whatsapp_click||0,feedback,orders:orderCount,repairs:repairCount,revenue,alerts:low.slice(0,10).map(x=>x.name+" is low: "+x.stock+" left"),events:Object.keys(c).map(k=>({name:k,count:c[k]})),daily:[c.page_view||0,c.shop_click||0,c.repair_submit||0,c.whatsapp_click||0]});}
 function parseImages_(v){if(Array.isArray(v))return v.filter(x=>typeof x==='string'&&x).slice(0,4);const s=String(v||"").trim();if(!s)return [];try{const a=JSON.parse(s);return Array.isArray(a)?a.filter(x=>typeof x==='string'&&x).slice(0,4):[];}catch(e){return [];}}
 function productMap_(x){return {id:String(x[0]),name:String(x[1]),sku:String(x[2]),price:Number(x[3]||0),stock:Number(x[4]||0),minimum:Number(x[5]||0),updated:String(x[6]||""),icon:String(x[7]||"📱"),category:String(x[8]||"Accessories"),description:String(x[9]||""),images:parseImages_(x[10])};}
 function publicProducts_(){const a=moduleData_("Products",productMap_).filter(x=>x.stock>0);return J({ok:true,items:a});}
@@ -134,7 +188,23 @@ function updateRepair_(p,session){return updateStatus_("Repairs",p,"repair_updat
 function updateStatus_(sheet,p,auditAction){const s=S(sheet);if(!s)return J({ok:false,message:"Unavailable"});const id=clean_(p.id,120),status=safeStatus_(sheet,p.status);if(!id||!status)return J({ok:false,message:"Invalid status update"});const r=s.getDataRange().getValues();for(let i=1;i<r.length;i++)if(String(r[i][0])===id){s.getRange(i+1,8).setValue(status);if(sheet==="Repairs")notification_("repair_status",id+" → "+status);else notification_("order_status",id+" → "+status);audit_(auditAction,id+" → "+status);return J({ok:true});}return J({ok:false,message:"Record not found"});}
 function updateReview_(p,session){const s=S("Reviews");if(!s)return J({ok:false,message:"Reviews unavailable"});const id=clean_(p.id,120),status=["Pending","Approved","Rejected"].indexOf(p.status)>=0?p.status:"Pending";const r=s.getDataRange().getValues();for(let i=1;i<r.length;i++)if(String(r[i][0])===id){s.getRange(i+1,4).setValue(status);s.getRange(i+1,5).setValue(Boolean(p.featured));audit_("review_update",id);return J({ok:true});}return J({ok:false,message:"Review not found"});}
 function upsertCustomer_(name,phone){const s=S("Customers");if(!s)return;const r=s.getDataRange().getValues();for(let i=1;i<r.length;i++)if(String(r[i][2])===phone){s.getRange(i+1,4).setValue(Number(r[i][3]||0)+1);s.getRange(i+1,5).setValue(now_());return;}s.appendRow([Utilities.getUuid(),clean_(name,80),phone,1,now_()]);}
-function notification_(type,message,phone){const text=clean_(message,500),s=S("Notifications");if(s)s.appendRow([now_(),type,text,false]);const email=P("PMT_ALERT_EMAIL");if(email&&email_(email)){try{MailApp.sendEmail({to:email,subject:"PMT: "+type,textBody:text});}catch(e){auditSafe_("email_error",String(e));}}if(phone)sendWhatsApp_(phone,text);}
+function notification_(type,message,phone,orderId,actionToken){
+  let text=clean_(message,500);
+  if(type==="order_received"&&orderId&&actionToken){
+    const webAppUrl=ScriptApp.getService().getUrl();
+    if(webAppUrl){
+      text+="\n\nAccept:\n"+webAppUrl+"?action=acceptOrder&id="+encodeURIComponent(orderId)+"&token="+encodeURIComponent(actionToken);
+      text+="\n\nReject:\n"+webAppUrl+"?action=rejectOrder&id="+encodeURIComponent(orderId)+"&token="+encodeURIComponent(actionToken);
+    }
+  }
+  text=clean_(text,500);
+  const s=S("Notifications");if(s)s.appendRow([now_(),type,text,false]);
+  const email=P("PMT_ALERT_EMAIL");
+  if(email&&email_(email)){
+    try{MailApp.sendEmail({to:email,subject:"PMT: "+type,textBody:text});}catch(e){auditSafe_("email_error",String(e));}
+  }
+  if(phone)sendWhatsApp_(phone,text);
+}
 function sendWhatsApp_(phone,message){const url=P("PMT_WA_WEBHOOK_URL");if(!url||!phone_(String(phone)))return;try{UrlFetchApp.fetch(url,{method:"post",contentType:"application/json",payload:JSON.stringify({phone:String(phone),message:clean_(message,500)}),muteHttpExceptions:true});}catch(e){auditSafe_("whatsapp_error",String(e));}}
 function audit_(action,detail){const s=S("ActivityLog");if(s)s.appendRow([now_(),clean_(action,80),clean_(detail,500)]);}
 function auditSafe_(a,d){try{audit_(a,d);}catch(e){}}
@@ -148,7 +218,7 @@ function setupPMT(spreadsheetId,mediaFolderId,backupFolderId,adminUsername,admin
   if(spreadsheetId)props.setProperty("PMT_SPREADSHEET_ID",String(spreadsheetId));if(mediaFolderId)props.setProperty("PMT_MEDIA_FOLDER_ID",String(mediaFolderId));if(backupFolderId)props.setProperty("PMT_BACKUP_FOLDER_ID",String(backupFolderId));if(adminUsername)props.setProperty("PMT_OWNER_USERNAME",String(adminUsername));if(adminPassword)props.setProperty("PMT_OWNER_PASSWORD",String(adminPassword));if(adminName)props.setProperty("PMT_OWNER_NAME",String(adminName));
   const pp=props.getProperties(),id=pp.PMT_SPREADSHEET_ID,mf=pp.PMT_MEDIA_FOLDER_ID,bf=pp.PMT_BACKUP_FOLDER_ID,u=pp.PMT_OWNER_USERNAME,pw=pp.PMT_OWNER_PASSWORD,n=pp.PMT_OWNER_NAME||"Owner";
   if(!id||!mf||!bf||!u||!pw||pw.length<10)throw Error("Missing setup values. Configure PMT_SPREADSHEET_ID, PMT_MEDIA_FOLDER_ID, PMT_BACKUP_FOLDER_ID, PMT_OWNER_USERNAME, PMT_OWNER_PASSWORD and PMT_OWNER_NAME.");
-  const ss=SpreadsheetApp.openById(id),defs={SiteContent:[["key","json"]],HomepageBlocks:[["id","type","title","enabled","position"]],Products:[["id","name","sku","price","stock","minimum","updated","icon","category","description","images"]],Orders:[["id","date","customer","phone","items","total","payment","status"]],Repairs:[["id","date","name","phone","device","issue","notes","status","estimate","updated"]],Coupons:[["id","code","type","value","expires","active"]],Customers:[["id","name","phone","orders","lastActivity"]],Reviews:[["id","name","text","status","featured"]],Feedback:[["id","date","name","phone","rating","message","status"]],Notifications:[["time","type","message","read"]],Users:[["id","username","salt","hash","name","role","status","created"]],Analytics:[["time","event","path","meta"]],ActivityLog:[["time","action","detail"]]};
+  const ss=SpreadsheetApp.openById(id),defs={SiteContent:[["key","json"]],HomepageBlocks:[["id","type","title","enabled","position"]],Products:[["id","name","sku","price","stock","minimum","updated","icon","category","description","images"]],Orders:[["id","date","customer","phone","items","total","payment","status","actionToken"]],Repairs:[["id","date","name","phone","device","issue","notes","status","estimate","updated"]],Coupons:[["id","code","type","value","expires","active"]],Customers:[["id","name","phone","orders","lastActivity"]],Reviews:[["id","name","text","status","featured"]],Feedback:[["id","date","name","phone","rating","message","status"]],Notifications:[["time","type","message","read"]],Users:[["id","username","salt","hash","name","role","status","created"]],Analytics:[["time","event","path","meta"]],ActivityLog:[["time","action","detail"]]};
   Object.keys(defs).forEach(name=>{let sh=ss.getSheetByName(name);if(!sh)sh=ss.insertSheet(name);const headers=defs[name][0];if(sh.getLastRow()===0)sh.getRange(1,1,1,headers.length).setValues([headers]);else if(sh.getLastColumn()<headers.length)sh.getRange(1,1,1,headers.length).setValues([headers]);});
   ensureProductColumns_(ss.getSheetByName("Products"));
   const sh=ss.getSheetByName("Users"),rows=sh.getDataRange().getValues();let found=-1;for(let i=1;i<rows.length;i++)if(String(rows[i][1]).toLowerCase()===u.toLowerCase()){found=i+1;break;}const salt=Utilities.getUuid(),h=hash_(pw,salt);if(found<0)sh.appendRow([Utilities.getUuid(),u,salt,h,n,"Owner","Active",now_()]);else sh.getRange(found,3,1,6).setValues([[salt,h,n,"Owner","Active",now_()]]);props.deleteProperty("PMT_OWNER_PASSWORD");auditSafe_("setup","PMT setup complete");return "PMT setup complete.";
