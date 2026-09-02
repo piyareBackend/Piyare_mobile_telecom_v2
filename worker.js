@@ -4,9 +4,13 @@ function canonicalDriveSource(value){
   const s=String(value||'').trim();if(!s)return '';
   try{
     const u=new URL(s);
-    if(u.hostname==='drive.google.com'){
-      const file=u.pathname.match(/\/file\/d\/([^/]+)/);if(file)return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(file[1])}`;
-      const id=u.searchParams.get('id');if(id)return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`;
+    const isDrive=['drive.google.com','drive.usercontent.google.com','lh3.googleusercontent.com'].includes(u.hostname);
+    if(isDrive){
+      let id='';
+      const file=u.pathname.match(/\/file\/d\/([^/]+)/);if(file)id=file[1];
+      if(!id&&u.pathname.match(/\/d\/([^/]+)/))id=u.pathname.match(/\/d\/([^/]+)/)[1];
+      if(!id)id=u.searchParams.get('id')||'';
+      if(id)return `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1600`;
     }
     return s;
   }catch(_){return s;}
