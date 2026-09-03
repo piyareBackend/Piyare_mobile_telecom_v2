@@ -9,7 +9,7 @@ window.PMT_OWNER_WHATSAPP="";
     if(phone)window.PMT_OWNER_WHATSAPP=phone;
     if(!phone)return;
     document.querySelectorAll('a[href^="tel:"]').forEach(function(a){a.textContent='Call Shop';a.setAttribute('aria-label','Call Shop');a.href='tel:+'+phone;a.removeAttribute('aria-disabled');a.style.pointerEvents='';a.style.opacity=''});
-    document.querySelectorAll('a[href*="wa.me/"]').forEach(function(a){a.href=a.href.replace(/(wa\.me\/)[^?/#]+/i,'$1'+phone);var t=a.textContent||'';if(/WhatsApp|7481997721|917481997721|917366815917/.test(t))a.textContent=t.replace(/(?:\+?91[-\s]?)?[6-9][0-9]{9}/g,'WhatsApp').replace(/^WhatsApp:\s*WhatsApp$/,'WhatsApp');});
+    document.querySelectorAll('a[href*="wa.me/"]').forEach(function(a){a.href=a.href.replace(/(wa\.me\/)[^?/#]+/i,'$1'+phone);var t=a.textContent||'';if(/WhatsApp/i.test(t))a.textContent='WhatsApp';else if(/[6-9][0-9]{9}/.test(t))a.textContent=t.replace(/[6-9][0-9]{9}/g,phone)});
     document.querySelectorAll('body *').forEach(function(el){if(el.children.length===0&&/Hours:\s*10 AM|10 AM – 8:30 PM/.test(el.textContent||''))el.textContent='Hours: '+String(s.hours||'10 AM – 8:30 PM')});
   }
   function contact(){
