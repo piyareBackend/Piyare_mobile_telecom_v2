@@ -19,6 +19,24 @@ function canonicalDriveSource(value){
 export default {
   async fetch(request, env) {
     const url=new URL(request.url);
+
+    // Allow the companion admin app (hosted on a different domain) to call this API.
+    const ALLOWED_ORIGINS = [
+      'https://pmt-admin-app.netlify.app'
+      // add more origins here if you host the admin app elsewhere too
+    ];
+    const origin = request.headers.get('Origin') || '';
+    const corsHeaders = {};
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+      corsHeaders['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS';
+      corsHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
+    }
+
+    if (request.method === 'OPTIONS' && (url.pathname==='/api' || url.pathname.startsWith('/api/'))) {
+      return new Response(null, {status:204, headers:corsHeaders});
+    }
+
     if(url.pathname==='/api' || url.pathname.startsWith('/api/')){
       const target=new URL(PMT_API);
       url.searchParams.forEach((v,k)=>target.searchParams.set(k,v));
@@ -37,9 +55,10 @@ export default {
         const out=new Response(response.body,response);
         out.headers.set('Cache-Control',cacheablePublic?'public, max-age=120, s-maxage=120':'no-store, no-cache, must-revalidate');
         out.headers.set('X-PMT-API-Proxy','ok');
+        Object.entries(corsHeaders).forEach(([k,v])=>out.headers.set(k,v));
         return out;
       }catch(err){
-        return new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'API_PROXY_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+        return new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'API_PROXY_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...corsHeaders}});
       }
     }
     if(url.pathname==='/img'){
