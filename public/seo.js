@@ -16,6 +16,6 @@
     const old=document.querySelector('script[data-pmt-localbusiness]');if(old)old.remove();
     const tag=document.createElement('script');tag.type='application/ld+json';tag.dataset.pmtLocalbusiness='1';tag.textContent=JSON.stringify(schema);document.head.appendChild(tag);
   }
-  if(typeof loadSiteContent==='function')loadSiteContent().then(data=>addSchema(data?.site||{})).catch(()=>addSchema({}));
-  else addSchema({});
+  function load(){if(typeof loadSiteContent!=='function')return setTimeout(load,100);loadSiteContent().then(data=>addSchema(data?.site||{})).catch(()=>addSchema({}));}
+  load();
 })();
