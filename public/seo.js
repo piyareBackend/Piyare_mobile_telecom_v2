@@ -10,7 +10,12 @@
   upsert('meta[property="og:type"]','meta',{property:'og:type',content:'website'});
   upsert('meta[property="og:url"]','meta',{property:'og:url',content:location.href.split('#')[0]});
   upsert('link[rel="canonical"]','link',{rel:'canonical',href:location.href.split('#')[0]});
-  if(location.pathname==='/'||/index\.html$/.test(location.pathname)){
-    const s=document.createElement('script');s.type='application/ld+json';s.textContent=JSON.stringify({"@context":"https://schema.org","@type":"LocalBusiness","name":"Piyare Mobile Telecom","url":origin,"description":desc,"telephone":"+91-7481997721","priceRange":"₹₹","sameAs":[]});document.head.appendChild(s);
+  function addSchema(s){
+    const schema={"@context":"https://schema.org","@type":"LocalBusiness","name":s.name||'Piyare Mobile Telecom',"url":origin,"description":s.tagline||desc,"priceRange":"₹₹","sameAs":s.justdialUrl?[s.justdialUrl]:[]};
+    if(s.whatsapp){const p=String(s.whatsapp).replace(/\D/g,'');if(p)schema.telephone='+91-'+p}
+    const old=document.querySelector('script[data-pmt-localbusiness]');if(old)old.remove();
+    const tag=document.createElement('script');tag.type='application/ld+json';tag.dataset.pmtLocalbusiness='1';tag.textContent=JSON.stringify(schema);document.head.appendChild(tag);
   }
+  if(typeof loadSiteContent==='function')loadSiteContent().then(data=>addSchema(data?.site||{})).catch(()=>addSchema({}));
+  else addSchema({});
 })();
