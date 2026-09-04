@@ -22,7 +22,8 @@ export default {
 
     // Allow the companion admin app (hosted on a different domain) to call this API.
     const ALLOWED_ORIGINS = [
-      'https://pmt-admin-app.netlify.app'
+      'https://pmt-admin-app.netlify.app',
+      'https://reliable-selkie-0c1672.netlify.app'
       // add more origins here if you host the admin app elsewhere too
     ];
     const origin = request.headers.get('Origin') || '';
