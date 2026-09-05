@@ -1,6 +1,6 @@
 /* PMT staff access v3: assigned pages only. */
 (function(){
-  if(!/\/admin\//.test(location.pathname)||/login\.html$/i.test(location.pathname))return;
+  if(!/\/admin(?:\/|$)/.test(location.pathname)||/\/admin\/login(?:\.html)?\/?$/i.test(location.pathname))return;
   const PAGE_PERM={
     'dashboard.html':'dashboard','pos.html':'pos','billing.html':'billing','products.html':'products_view',
     'product-editor.html':'products_edit','product-editor-v2.html':'products_edit','inventory.html':'inventory_view',
@@ -12,13 +12,13 @@
     'backup.html':'backups','users.html':'staff'
   };
   const LINK_PERM=[
-    [/\/admin\/(dashboard\.html)?$/,'dashboard'],[/pos\.html/,'pos'],[/billing\.html/,'billing'],
-    [/products\.html/,'products_view'],[/product-editor/,'products_edit'],[/inventory\.html|alerts\.html/,'inventory_view'],
-    [/orders\.html/,'orders_view'],[/repairs\.html/,'repairs'],[/customers\.html/,'customers'],[/coupons\.html/,'coupons'],
-    [/feedback\.html|reviews\.html/,'feedback'],[/analytics\.html/,'analytics'],[/monthly-report|monthly-reports|reports\.html/,'reports'],
-    [/media\.html|uploads\.html/,'media'],[/settings\.html/,'settings'],[/security\.html/,'security'],
-    [/staff-access\.html|users\.html/,'staff'],[/editor\.html|homepage\.html|seo\.html/,'website'],[/banners\.html/,'banners'],
-    [/notifications\.html/,'dashboard'],[/backup\.html/,'backups']
+    [/\/admin\/(dashboard(?:\.html)?\/?$|$)/,'dashboard'],[/pos(?:\.html)?/,'pos'],[/billing(?:\.html)?/,'billing'],
+    [/products(?:\.html)?/,'products_view'],[/product-editor(?:\.html)?/,'products_edit'],[/inventory(?:\.html)?|alerts(?:\.html)?/,'inventory_view'],
+    [/orders(?:\.html)?/,'orders_view'],[/repairs(?:\.html)?/,'repairs'],[/customers(?:\.html)?/,'customers'],[/coupons(?:\.html)?/,'coupons'],
+    [/feedback(?:\.html)?|reviews(?:\.html)?/,'feedback'],[/analytics(?:\.html)?/,'analytics'],[/monthly-report(?:s)?(?:\.html)?|reports(?:\.html)?/,'reports'],
+    [/media(?:\.html)?|uploads(?:\.html)?/,'media'],[/settings(?:\.html)?/,'settings'],[/security(?:\.html)?/,'security'],
+    [/staff-access(?:\.html)?|users(?:\.html)?/,'staff'],[/editor(?:\.html)?|homepage(?:\.html)?|seo(?:\.html)?/,'website'],[/banners(?:\.html)?/,'banners'],
+    [/notifications(?:\.html)?/,'dashboard'],[/backup(?:\.html)?/,'backups']
   ];
   const ROLE_DEFAULTS={
     Support:['dashboard','pos','billing','orders_view','repairs','customers','inventory_view'],
@@ -43,6 +43,12 @@
     if(!el)el=a;
     el.style.setProperty('display','none','important');
   }
+  function currentPage(){
+    const path=location.pathname.replace(/\/+$/,'');
+    if(!path||path==='/admin')return 'dashboard.html';
+    let name=path.split('/').pop()||'dashboard';
+    return /\.html$/i.test(name)?name:name+'.html';
+  }
   function apply(u){
     const p=perms(u);document.documentElement.dataset.pmtRole=String(u.role||'');
     document.querySelectorAll('a[href]').forEach(a=>{
@@ -53,7 +59,7 @@
       const n=el.getAttribute('data-permission')||el.getAttribute('data-pmt-permission');
       if(n&&!ok(p,n))el.style.setProperty('display','none','important');
     });
-    const current=location.pathname.split('/').pop()||'dashboard.html',need=PAGE_PERM[current];
+    const current=currentPage(),need=PAGE_PERM[current];
     if(need&&!ok(p,need)){
       const target=firstAllowed(p);
       if(target!==current)location.replace(target+'?access=redirected');
