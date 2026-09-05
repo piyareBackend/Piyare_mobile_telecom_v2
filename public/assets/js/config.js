@@ -24,7 +24,7 @@
   }
 
   function installOffline(){
-    if(!/\/admin\//.test(location.pathname)||window.__PMT_OFFLINE_LOADER)return;
+    if(!/\/admin\//.test(location.pathname)||window.__PMT_OFFLINE_LOADER||window.PMT_OFFLINE)return;
     window.__PMT_OFFLINE_LOADER=true;
     var s=document.createElement('script');s.src='/assets/js/offline-core.js?v=2';s.async=false;
     s.onload=function(){};s.onerror=function(){window.__PMT_OFFLINE_LOADER=false};
