@@ -1,11 +1,10 @@
-const CACHE='pmt-admin-shell-v1';
-const SHELL=['/admin/','/admin/index.html','/admin/login.html','/admin/dashboard.html','/admin/products.html','/admin/product-editor-v2.html','/admin/banners.html','/admin/inventory.html','/admin/orders.html','/admin/repairs.html','/admin/coupons.html','/admin/customers.html','/admin/feedback.html','/admin/analytics.html','/admin/reports.html','/admin/media.html','/admin/settings.html','/assets/css/main.css','/assets/js/config.js','/assets/js/admin.js','/assets/js/app.js','/assets/js/product-sync.js','/assets/js/product-fixes.js'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL).catch(()=>{})).then(()=>self.skipWaiting()))});
+const CACHE='pmt-admin-shell-v2';
+const SHELL=['/admin/','/admin/index.html','/admin/login.html','/admin/dashboard.html','/admin/pos.html','/admin/products.html','/admin/product-editor-v2.html','/admin/banners.html','/admin/inventory.html','/admin/orders.html','/admin/repairs.html','/admin/coupons.html','/admin/customers.html','/admin/feedback.html','/admin/analytics.html','/admin/reports.html','/admin/media.html','/admin/settings.html','/assets/css/main.css','/assets/js/config.js','/assets/js/admin.js','/assets/js/app.js','/assets/js/product-sync.js','/assets/js/product-fixes.js','/assets/js/offline-core.js?v=2'];
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(x=>new Request(x,{cache:'reload'}))).catch(()=>{})).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
-  const r=event.request;
-  if(r.method!=='GET')return;
+  const r=event.request;if(r.method!=='GET')return;
   const u=new URL(r.url);
-  if(u.pathname==='/api'||u.pathname.startsWith('/api/'))return;
-  event.respondWith(fetch(r).then(res=>{if(res.ok&&u.origin===location.origin){const copy=res.clone();caches.open(CACHE).then(c=>c.put(r,copy)).catch(()=>{})}return res}).catch(()=>caches.match(r).then(x=>x||caches.match('/admin/login.html'))));
+  if(u.pathname==='/api'||u.pathname.startsWith('/api/')||u.pathname==='/img')return;
+  event.respondWith(fetch(r).then(res=>{if(res.ok&&u.origin===location.origin){const copy=res.clone();caches.open(CACHE).then(c=>c.put(r,copy)).catch(()=>{})}return res}).catch(()=>caches.match(r).then(x=>x||caches.match('/admin/pos.html')||caches.match('/admin/login.html'))));
 });
