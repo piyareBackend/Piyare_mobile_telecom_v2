@@ -11,6 +11,18 @@
     navigator.serviceWorker.register('/admin/sw.js',{scope:'/admin/'}).catch(function(){});
   }
 
+  function installRealtimeAdminGet(){
+    if(!/\/admin\//.test(location.pathname)||window.__PMT_REALTIME_GET)return;
+    if(typeof window.pmtGet!=='function')return setTimeout(installRealtimeAdminGet,50);
+    var original=window.pmtGet;
+    window.pmtGet=async function(action,params){
+      var adminActions=['dashboard','analytics','homepage','products','orders','repairs','coupons','reviews','notifications','lowStock','users','feedback','activity','customers','inventory','monthlyReport','orderDetail','customerDetail'];
+      if(adminActions.indexOf(action)>=0){params=Object.assign({},params||{}, {_fresh:String(Date.now())});}
+      return original(action,params);
+    };
+    window.__PMT_REALTIME_GET=true;
+  }
+
   function syncPhone(data){
     var s=data&&data.site||{};
     var phone=String(s.whatsapp||window.PMT_OWNER_WHATSAPP||'').replace(/\D/g,'');
@@ -24,7 +36,7 @@
     if(typeof loadSiteContent!=='function')return setTimeout(contact,100);
     loadSiteContent().then(syncPhone).catch(function(){});
   }
-  function init(){registerPWA();contact()}
+  function init(){registerPWA();contact();installRealtimeAdminGet()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
   window.addEventListener('pmt-content-updated',contact);
   window.PMT_SYNC_CONTACT_NUMBER=syncPhone;
