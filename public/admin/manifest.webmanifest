@@ -1,0 +1,11 @@
+{
+  "name":"Piyare Mobile Telecom Admin",
+  "short_name":"PMT Admin",
+  "start_url":"/admin/",
+  "scope":"/admin/",
+  "display":"standalone",
+  "background_color":"#f5f7fb",
+  "theme_color":"#111827",
+  "description":"Piyare Mobile Telecom owner control room",
+  "icons":[{"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
