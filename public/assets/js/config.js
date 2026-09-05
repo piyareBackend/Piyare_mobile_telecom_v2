@@ -1,8 +1,16 @@
-/* PMT public configuration. Navigation is initialized only by app.js to avoid duplicate mobile-menu handlers. */
-window.PMT_PUBLIC_API_URL="/api";
-window.PMT_OWNER_WHATSAPP="";
-
+/* PMT public configuration. Cloudflare Worker is the only browser API surface. */
 (function(){
+  var WORKER_API='https://piyare-mobile-telecom.sadab-notes-backup.workers.dev/api';
+  var host=String(location.hostname||'').toLowerCase();
+  var isNetlify=/\.netlify\.app$/.test(host);
+  window.PMT_PUBLIC_API_URL=isNetlify?WORKER_API:'/api';
+  window.PMT_OWNER_WHATSAPP='';
+
+  function registerPWA(){
+    if(!('serviceWorker' in navigator))return;
+    navigator.serviceWorker.register('/admin/sw.js',{scope:'/admin/'}).catch(function(){});
+  }
+
   function syncPhone(data){
     var s=data&&data.site||{};
     var phone=String(s.whatsapp||window.PMT_OWNER_WHATSAPP||'').replace(/\D/g,'');
@@ -16,7 +24,7 @@ window.PMT_OWNER_WHATSAPP="";
     if(typeof loadSiteContent!=='function')return setTimeout(contact,100);
     loadSiteContent().then(syncPhone).catch(function(){});
   }
-  function init(){contact()}
+  function init(){registerPWA();contact()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
   window.addEventListener('pmt-content-updated',contact);
   window.PMT_SYNC_CONTACT_NUMBER=syncPhone;
