@@ -32,12 +32,15 @@ export default {
 
     if(url.pathname==='/health'){
       try{
-        const u=new URL(PMT_API);u.searchParams.set('action','health');u.searchParams.set('_health',PMT_VERSION);
+        // The consolidated backend exposes publicProducts as a public, DB-backed probe.
+        // Do not require a new public health route in Apps Script just to monitor the Worker.
+        const u=new URL(PMT_API);u.searchParams.set('action','publicProducts');u.searchParams.set('_health',PMT_VERSION);u.searchParams.set('_fresh',Date.now().toString());
         const backend=await fetch(u.toString(),{method:'GET',redirect:'follow',cache:'no-store'});
         const text=await backend.text();
         let parsed=null;try{parsed=JSON.parse(text);}catch(_){parsed={ok:false,error:'Backend returned non-JSON',status:backend.status};}
-        const payload={ok:backend.ok&&parsed?.ok!==false,service:'pmt-worker',version:PMT_VERSION,time:new Date().toISOString(),backend:parsed};
-        return withCors(new Response(JSON.stringify(payload),{status:payload.ok?200:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}),corsOrigin);
+        const backendOk=backend.ok&&parsed?.ok===true;
+        const payload={ok:backendOk,service:'pmt-worker',version:PMT_VERSION,time:new Date().toISOString(),backend:backendOk?{ok:true,service:'pmt-backend',probe:'publicProducts',productCount:Array.isArray(parsed.data)?parsed.data.length:0}:{ok:false,error:parsed?.error||'Backend health probe failed',code:parsed?.code||'BACKEND_HEALTH_FAILED'}};
+        return withCors(new Response(JSON.stringify(payload),{status:backendOk?200:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}),corsOrigin);
       }catch(err){
         return withCors(new Response(JSON.stringify({ok:false,service:'pmt-worker',version:PMT_VERSION,error:String(err&&err.message||err),code:'BACKEND_HEALTH_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}),corsOrigin);
       }
