@@ -5,6 +5,10 @@
   "compatibility_date": "2026-08-20",
   "workers_dev": true,
   "keep_vars": true,
+  "vars": {
+    "PMT_API_URL": "https://script.google.com/macros/s/AKfycbwstzcqUNbrxIV-4cxgmi_s7Yp-JYGO4ozHwwascfG4c3dr5mAsxQatD_6fpfxruu4/exec",
+    "PMT_ALLOWED_ORIGINS": "https://pmt-admin-app.netlify.app,https://reliable-selkie-0c1672.netlify.app"
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
