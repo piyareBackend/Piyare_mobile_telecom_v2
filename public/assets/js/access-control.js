@@ -10,6 +10,7 @@
     if(!user)return;const perms=Array.isArray(user.permissions)?user.permissions:[];
     document.documentElement.dataset.pmtRole=String(user.role||'');
     document.querySelectorAll('a[href]').forEach(a=>{const href=String(a.getAttribute('href')||'');for(const pair of LINK_PERM){if(pair[0].test(href)&&!allowed(perms,pair[1])){const item=a.closest('li,.nav-item,.sidebar-item,.menu-item');(item||a).style.display='none';break;}}});
+    if(allowed(perms,'staff')&&!document.querySelector('a[data-pmt-staff-access]')){const host=document.querySelector('.sidebar,.sidebar-nav,.side-nav,.navlinks');if(host){const a=document.createElement('a');a.href='staff-access.html';a.dataset.pmtStaffAccess='1';a.textContent='Staff Access';a.style.cssText='display:block;margin-top:8px';host.appendChild(a);}}
     const current=location.pathname.split('/').pop()||'dashboard.html',needed=PAGE_PERM[current];
     if(needed&&!allowed(perms,needed)){location.replace('dashboard.html?access=denied');return;}
     if(current==='dashboard.html'&&new URLSearchParams(location.search).get('access')==='denied'){const box=document.createElement('div');box.textContent='You do not have permission to open that page.';box.style.cssText='position:fixed;top:18px;right:18px;z-index:99999;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#111827;box-shadow:0 10px 30px rgba(0,0,0,.12)';document.body.appendChild(box);setTimeout(()=>box.remove(),3500);}
