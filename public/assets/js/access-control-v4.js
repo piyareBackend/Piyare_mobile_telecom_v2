@@ -1,11 +1,8 @@
 /* PMT strict staff access v4: Owner=all, staff=explicit assigned permissions only. */
 (function(){
   if(!/\/admin\//.test(location.pathname)||/login\.html$/i.test(location.pathname))return;
-  /* Lock the entire admin document before any unauthorized page can paint. */
   document.documentElement.style.visibility='hidden';
-  const PAGE={
-    'dashboard.html':'dashboard','pos.html':'pos','billing.html':'billing','products.html':'products_view','product-editor.html':'products_edit','product-editor-v2.html':'products_edit','inventory.html':'inventory_view','orders.html':'orders_view','repairs.html':'repairs','customers.html':'customers','coupons.html':'coupons','feedback.html':'feedback','reviews.html':'feedback','analytics.html':'analytics','monthly-reports.html':'reports','monthly-report.html':'reports','reports.html':'reports','media.html':'media','uploads.html':'media','settings.html':'settings','security.html':'security','staff-access.html':'staff','editor.html':'website','website-editor.html':'website','banners.html':'banners','backup.html':'backups','users.html':'staff'
-  };
+  const PAGE={'dashboard.html':'dashboard','pos.html':'pos','billing.html':'billing','products.html':'products_view','product-editor.html':'products_edit','product-editor-v2.html':'products_edit','inventory.html':'inventory_view','orders.html':'orders_view','repairs.html':'repairs','customers.html':'customers','coupons.html':'coupons','feedback.html':'feedback','reviews.html':'feedback','analytics.html':'analytics','monthly-reports.html':'reports','monthly-report.html':'reports','reports.html':'reports','media.html':'media','uploads.html':'media','settings.html':'settings','security.html':'security','staff-access.html':'staff','editor.html':'website','website-editor.html':'website','banners.html':'banners','backup.html':'backups','users.html':'staff'};
   const HINTS=[['pos','pos'],['billing','billing'],['product-editor','products_edit'],['products','products_view'],['inventory','inventory_view'],['orders','orders_view'],['repairs','repairs'],['customers','customers'],['coupons','coupons'],['feedback','feedback'],['reviews','feedback'],['analytics','analytics'],['monthly-report','reports'],['reports','reports'],['media','media'],['uploads','media'],['security','security'],['settings','settings'],['staff-access','staff'],['users','staff'],['banners','banners'],['editor','website'],['website-editor','website'],['backup','backups']];
   const LANDING_ORDER=['dashboard','pos','billing','orders_view','repairs','customers','inventory_view','products_view','products_edit','website','banners','coupons','feedback','analytics','reports','media','settings','security','staff','backups'];
   const LANDING={dashboard:'dashboard.html',pos:'pos.html',billing:'billing.html',orders_view:'orders.html',repairs:'repairs.html',customers:'customers.html',inventory_view:'inventory.html',products_view:'products.html',products_edit:'product-editor-v2.html',website:'editor.html',banners:'banners.html',coupons:'coupons.html',feedback:'feedback.html',analytics:'analytics.html',reports:'reports.html',media:'media.html',settings:'settings.html',security:'security.html',staff:'staff-access.html',backups:'backup.html'};
@@ -25,19 +22,17 @@
       if(target&&target!==current){location.replace(target+'?access=redirected');return}
       sessionStorage.removeItem('pmt-admin-token');sessionStorage.removeItem('pmt-admin-user');location.replace('login.html?access=none');return;
     }
-    if(allowed(p,'staff')){const host=document.querySelector('.admin-sidebar');if(host&&!host.querySelector('a[data-pmt-staff-link]')){const a=document.createElement('a');a.href='staff-access.html';a.dataset.pmtStaffLink='1';a.textContent='Staff & Access';host.appendChild(a)}}
-    else document.querySelectorAll('a[href*="staff-access.html"]').forEach(hide);
+    if(allowed(p,'staff')){const host=document.querySelector('.admin-sidebar');if(host&&!host.querySelector('a[data-pmt-staff-link]')){const a=document.createElement('a');a.href='staff-access.html';a.dataset.pmtStaffLink='1';a.textContent='Staff & Access';host.appendChild(a)}}else document.querySelectorAll('a[href*="staff-access.html"]').forEach(hide);
     document.documentElement.style.visibility='visible';
   }
   async function boot(){
     const token=sessionStorage.getItem('pmt-admin-token');
     if(!token){location.replace('login.html');return}
-    /* Use the login-established user first. Refresh from the backend only when possible. */
     let u=stored();
     try{if(typeof window.pmtGet==='function'){const d=await window.pmtGet('myPermissions');if(d&&d.user)u=d.user}}catch(e){}
     if(!u){sessionStorage.removeItem('pmt-admin-token');sessionStorage.removeItem('pmt-admin-user');location.replace('login.html');return}
     u.permissions=permissions(u);sessionStorage.setItem('pmt-admin-user',JSON.stringify(u));window.PMT_ADMIN_USER=u;apply(u)
   }
-  window.PMT_ACCESS_V4={refresh:boot,has:n=>{const u=stored();return !!u&&allowed(permissions(u),n),landing:()=>{const u=stored();return u&&firstAllowed(permissions(u))}}};
+  window.PMT_ACCESS_V4={refresh:boot,has:function(n){const u=stored();return !!u&&allowed(permissions(u),n)},landing:function(){const u=stored();return u&&firstAllowed(permissions(u))}};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
