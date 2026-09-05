@@ -20,10 +20,14 @@ function ensurePosBillingV2Schema_(){
 
 function pmtPosBillingV2NormalizeItems_(items){
   if(!Array.isArray(items)||!items.length)throw Error('At least one item is required');
-  const catalog=items.filter(x=>String(x&&x.kind||'product')==='product');
-  const nonCatalog=items.filter(x=>['custom','service','repair'].indexOf(String(x&&x.kind||''))>=0);
-  const reserved=catalog.length?reserveStockAtomic_(catalog):[];
-  const out=reserved.map(x=>Object.assign({},x,{kind:'product'}));
+  const catalog=[],nonCatalog=[];
+  items.forEach(raw=>{
+    const kind=String(raw&&raw.kind||'product');
+    if(kind==='product')catalog.push(raw);
+    else if(['custom','service','repair'].indexOf(kind)>=0)nonCatalog.push(raw);
+    else throw Error('Unsupported billing item type: '+kind);
+  });
+  const out=[];
   nonCatalog.forEach(raw=>{
     const kind=String(raw&&raw.kind||'');
     const name=clean_(raw&&raw.name,160);
@@ -33,6 +37,10 @@ function pmtPosBillingV2NormalizeItems_(items){
     const prefix=kind==='custom'?'CUSTOM-':kind==='service'?'SERVICE-':'REPAIR-';
     out.push({id:prefix+Utilities.getUuid().slice(0,10).toUpperCase(),name,qty,price,variantId:'',kind,sku:clean_(raw&&raw.sku,80),notes:clean_(raw&&raw.notes,500)});
   });
+  if(catalog.length){
+    const reserved=reserveStockAtomic_(catalog);
+    reserved.forEach(x=>out.push(Object.assign({},x,{kind:'product'})));
+  }
   if(!out.length)throw Error('At least one item is required');
   return out;
 }
@@ -65,7 +73,6 @@ function createPosBill_(p,session){
     const os=ensurePosBillingV2Schema_();
     const id='PMT-POS-'+new Date().getFullYear()+'-'+Utilities.getUuid().slice(0,8).toUpperCase();
     const itemsJson=lines.map(x=>({id:x.id,name:x.name,qty:x.qty,price:x.price,variantId:x.variantId||'',kind:x.kind||'product',sku:x.sku||'',notes:x.notes||''}));
-    const start=ORDER_HEADERS.length+PMT_POS_ORDER_EXTRA_HEADERS.length;
     const row=[id,now_(),name,phone,JSON.stringify(itemsJson),total,payment.mode,'Confirmed','',subtotal,gstRate,gstAmount,pmtJson_(payment),key,'POS',billType,'SHOP-POS',clean_(p.repairTicket,80),clean_(p.notes,1000)];
     os.appendRow(row);
     if(phone)upsertCustomer_(name,phone);
