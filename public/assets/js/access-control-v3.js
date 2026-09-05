@@ -1,6 +1,8 @@
 /* PMT staff access v3: assigned pages only. */
 (function(){
   if(!/\/admin(?:\/|$)/.test(location.pathname)||/\/admin\/login(?:\.html)?\/?$/i.test(location.pathname))return;
+  /* Do not paint admin UI until the effective permissions are known. */
+  document.documentElement.style.visibility='hidden';
   const PAGE_PERM={
     'dashboard.html':'dashboard','pos.html':'pos','billing.html':'billing','products.html':'products_view',
     'product-editor.html':'products_edit','product-editor-v2.html':'products_edit','inventory.html':'inventory_view',
@@ -66,6 +68,7 @@
       else location.replace('login.html');
       return false;
     }
+    document.documentElement.style.visibility='visible';
     return true;
   }
   async function boot(){
