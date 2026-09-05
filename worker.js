@@ -1,4 +1,6 @@
-const PMT_API='https://script.google.com/macros/s/AKfycbwstzcqUNbrxIV-4cxgmi_s7Yp-JYGO4ozHwwascfG4c3dr5mAsxQatD_6fpfxruu4/exec';
+const PMT_VERSION='7.0-sync';
+const DEFAULT_PMT_API='https://script.google.com/macros/s/AKfycbwstzcqUNbrxIV-4cxgmi_s7Yp-JYGO4ozHwwascfG4c3dr5mAsxQatD_6fpfxruu4/exec';
+const DEFAULT_ALLOWED_ORIGINS=['https://pmt-admin-app.netlify.app','https://reliable-selkie-0c1672.netlify.app'];
 
 function canonicalDriveSource(value){
   const s=String(value||'').trim();if(!s)return '';
@@ -16,60 +18,84 @@ function canonicalDriveSource(value){
   }catch(_){return s;}
 }
 
+function allowedOrigins(env){
+  const raw=String(env.PMT_ALLOWED_ORIGINS||'').trim();
+  const list=raw?raw.split(',').map(x=>x.trim()).filter(Boolean):DEFAULT_ALLOWED_ORIGINS;
+  return new Set(list);
+}
+
+function withCors(response,origin){
+  const out=new Response(response.body,response);
+  if(origin){
+    out.headers.set('Access-Control-Allow-Origin',origin);
+    out.headers.set('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+    out.headers.set('Access-Control-Allow-Headers','Content-Type,Accept,X-PMT-Client-Version');
+    out.headers.set('Vary','Origin');
+  }
+  out.headers.set('X-PMT-Worker-Version',PMT_VERSION);
+  return out;
+}
+
 export default {
   async fetch(request, env) {
     const url=new URL(request.url);
+    const PMT_API=String(env.PMT_API_URL||DEFAULT_PMT_API);
+    const origin=request.headers.get('Origin')||'';
+    const allowed=allowedOrigins(env);
+    const corsOrigin=allowed.has(origin)?origin:'';
 
-    // Allow the companion admin app (hosted on a different domain) to call this API.
-    const ALLOWED_ORIGINS = [
-      'https://pmt-admin-app.netlify.app',
-      'https://reliable-selkie-0c1672.netlify.app'
-      // add more origins here if you host the admin app elsewhere too
-    ];
-    const origin = request.headers.get('Origin') || '';
-    const corsHeaders = {};
-    if (ALLOWED_ORIGINS.includes(origin)) {
-      corsHeaders['Access-Control-Allow-Origin'] = origin;
-      corsHeaders['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS';
-      corsHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
+    if(request.method==='OPTIONS' && (url.pathname==='/api' || url.pathname.startsWith('/api/'))){
+      return withCors(new Response(null,{status:204}),corsOrigin);
     }
 
-    if (request.method === 'OPTIONS' && (url.pathname==='/api' || url.pathname.startsWith('/api/'))) {
-      return new Response(null, {status:204, headers:corsHeaders});
+    if(url.pathname==='/health'){
+      return withCors(new Response(JSON.stringify({ok:true,service:'pmt-worker',version:PMT_VERSION,time:new Date().toISOString()}),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}),corsOrigin);
     }
 
     if(url.pathname==='/api' || url.pathname.startsWith('/api/')){
       const target=new URL(PMT_API);
       url.searchParams.forEach((v,k)=>target.searchParams.set(k,v));
       const action=url.searchParams.get('action')||'';
-      const cacheablePublic=request.method==='GET' && ['publicProducts','publicCoupons','track'].includes(action);
+      const fresh=url.searchParams.has('_fresh') || url.searchParams.get('cache')==='0';
+      const cacheablePublic=request.method==='GET' && !fresh && ['publicProducts','publicCoupons','track'].includes(action);
       const headers=new Headers();
       const ct=request.headers.get('content-type');
       const accept=request.headers.get('accept');
       if(ct)headers.set('content-type',ct);
       if(accept)headers.set('accept',accept);
+      headers.set('X-PMT-Client-Version',String(request.headers.get('X-PMT-Client-Version')||''));
       let body;
       if(request.method!=='GET'&&request.method!=='HEAD')body=await request.arrayBuffer();
       const init={method:request.method,headers,body,redirect:'follow'};
       try{
-        const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:120,cacheEverything:true}}:{...init,cache:'no-store'});
-        const out=new Response(response.body,response);
-        out.headers.set('Cache-Control',cacheablePublic?'public, max-age=120, s-maxage=120':'no-store, no-cache, must-revalidate');
+        const response=await fetch(target.toString(),cacheablePublic?{...init,cf:{cacheTtl:5,cacheEverything:true}}:{...init,cache:'no-store'});
+        const out=withCors(response,corsOrigin);
+        out.headers.set('Cache-Control',cacheablePublic?'public, max-age=5, s-maxage=5':'no-store, no-cache, must-revalidate');
         out.headers.set('X-PMT-API-Proxy','ok');
-        Object.entries(corsHeaders).forEach(([k,v])=>out.headers.set(k,v));
+        out.headers.set('X-PMT-Version',PMT_VERSION);
         return out;
       }catch(err){
-        return new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'API_PROXY_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...corsHeaders}});
+        return withCors(new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'API_PROXY_FAILED',version:PMT_VERSION}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}),corsOrigin);
       }
     }
+
     if(url.pathname==='/img'){
-      const source=url.searchParams.get('src');if(!source)return new Response(JSON.stringify({ok:false,error:'Missing image source',code:'IMAGE_SOURCE_MISSING'}),{status:400,headers:{'Content-Type':'application/json'}});
-      let src;try{src=new URL(canonicalDriveSource(source));}catch(_){return new Response(JSON.stringify({ok:false,error:'Invalid image source',code:'IMAGE_SOURCE_INVALID'}),{status:400,headers:{'Content-Type':'application/json'}});}
-      if(!['drive.google.com','drive.usercontent.google.com','lh3.googleusercontent.com'].includes(src.hostname))return new Response(JSON.stringify({ok:false,error:'Image source not allowed',code:'IMAGE_SOURCE_NOT_ALLOWED'}),{status:403,headers:{'Content-Type':'application/json'}});
-      const width=Math.max(120,Math.min(1600,Number(url.searchParams.get('w')||1200)));const height=Math.max(80,Math.min(1200,Number(url.searchParams.get('h')||900)));
-      const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:82}},redirect:'follow'});
-      if(!response.ok)return new Response(JSON.stringify({ok:false,error:'Drive image unavailable',code:'IMAGE_FETCH_FAILED'}),{status:response.status||502,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
-      const out=new Response(response.body,response);out.headers.set('Cache-Control','public, max-age=86400, immutable');return out;
+      const source=url.searchParams.get('src');
+      if(!source)return new Response(JSON.stringify({ok:false,error:'Missing image source',code:'IMAGE_SOURCE_MISSING'}),{status:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-PMT-Version':PMT_VERSION}});
+      let src;try{src=new URL(canonicalDriveSource(source));}catch(_){return new Response(JSON.stringify({ok:false,error:'Invalid image source',code:'IMAGE_SOURCE_INVALID'}),{status:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-PMT-Version':PMT_VERSION}});}
+      if(!['drive.google.com','drive.usercontent.google.com','lh3.googleusercontent.com'].includes(src.hostname))return new Response(JSON.stringify({ok:false,error:'Image source not allowed',code:'IMAGE_SOURCE_NOT_ALLOWED'}),{status:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-PMT-Version':PMT_VERSION}});
+      const width=Math.max(120,Math.min(1600,Number(url.searchParams.get('w')||1200)));
+      const height=Math.max(80,Math.min(1200,Number(url.searchParams.get('h')||900)));
+      try{
+        const response=await fetch(src.toString(),{cf:{image:{width,height,fit:'scale-down',format:'auto',quality:82}},redirect:'follow'});
+        if(!response.ok)return new Response(JSON.stringify({ok:false,error:'Drive image unavailable',code:'IMAGE_FETCH_FAILED',status:response.status}),{status:response.status||502,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-PMT-Version':PMT_VERSION}});
+        const out=new Response(response.body,response);
+        out.headers.set('Cache-Control','public, max-age=86400, immutable');
+        out.headers.set('X-PMT-Version',PMT_VERSION);
+        return out;
+      }catch(err){
+        return new Response(JSON.stringify({ok:false,error:String(err&&err.message||err),code:'IMAGE_PROXY_FAILED'}),{status:502,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-PMT-Version':PMT_VERSION}});
+      }
     }
     return env.ASSETS.fetch(request);
   },
