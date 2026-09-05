@@ -23,6 +23,14 @@
     window.__PMT_REALTIME_GET=true;
   }
 
+  function installOffline(){
+    if(!/\/admin\//.test(location.pathname)||window.__PMT_OFFLINE_LOADER)return;
+    window.__PMT_OFFLINE_LOADER=true;
+    var s=document.createElement('script');s.src='/assets/js/offline-core.js?v=2';s.async=false;
+    s.onload=function(){};s.onerror=function(){window.__PMT_OFFLINE_LOADER=false};
+    document.head.appendChild(s);
+  }
+
   function syncPhone(data){
     var s=data&&data.site||{};
     var phone=String(s.whatsapp||window.PMT_OWNER_WHATSAPP||'').replace(/\D/g,'');
@@ -36,7 +44,7 @@
     if(typeof loadSiteContent!=='function')return setTimeout(contact,100);
     loadSiteContent().then(syncPhone).catch(function(){});
   }
-  function init(){registerPWA();contact();installRealtimeAdminGet()}
+  function init(){registerPWA();contact();installRealtimeAdminGet();setTimeout(installOffline,0)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
   window.addEventListener('pmt-content-updated',contact);
   window.PMT_SYNC_CONTACT_NUMBER=syncPhone;
