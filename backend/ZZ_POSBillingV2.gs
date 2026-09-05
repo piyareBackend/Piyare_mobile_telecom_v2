@@ -45,6 +45,21 @@ function pmtPosBillingV2NormalizeItems_(items){
   return out;
 }
 
+function pmtPosBillingV2NormalizePayment_(payment,total){
+  const p=payment&&typeof payment==='object'?payment:{};
+  const mode=clean_(p.mode||'Cash',30);
+  const target=Math.round(Number(total||0)*100)/100;
+  if(mode==='Credit')return {mode:'Credit',cash:0,upi:0,card:0,paid:0,credit:target};
+  let cash=Math.max(0,Number(p.cash)||0),upi=Math.max(0,Number(p.upi)||0),card=Math.max(0,Number(p.card)||0);
+  if(mode==='Cash')cash=target;
+  if(mode==='UPI')upi=target;
+  if(mode==='Card')card=target;
+  if(mode==='Cash+UPI')card=0;
+  const paid=Math.round((cash+upi+card)*100)/100;
+  if(Math.abs(paid-target)>0.01)throw Error('Payment split must equal bill total');
+  return {mode,cash,upi,card,paid};
+}
+
 function createPosBill_(p,session){
   if(!roleAllowed_(session,'Support'))return forbidden_();
   p=p||{};
@@ -69,7 +84,7 @@ function createPosBill_(p,session){
     const taxable=Math.max(0,subtotal-discount);
     const gstAmount=Math.round(taxable*gstRate/100*100)/100;
     const total=Math.round((taxable+gstAmount)*100)/100;
-    const payment=normalizePayment_(p.payment,total);
+    const payment=pmtPosBillingV2NormalizePayment_(p.payment,total);
     const os=ensurePosBillingV2Schema_();
     const id='PMT-POS-'+new Date().getFullYear()+'-'+Utilities.getUuid().slice(0,8).toUpperCase();
     const itemsJson=lines.map(x=>({id:x.id,name:x.name,qty:x.qty,price:x.price,variantId:x.variantId||'',kind:x.kind||'product',sku:x.sku||'',notes:x.notes||''}));
