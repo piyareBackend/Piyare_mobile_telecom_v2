@@ -1,5 +1,7 @@
 /* PMT public configuration. Cloudflare Worker is the only browser API surface. */
 (function(){
+  var adminPath=/\/admin\//.test(location.pathname)&&!/login\.html$/i.test(location.pathname);
+  if(adminPath)document.documentElement.style.visibility='hidden';
   var WORKER_API='https://piyare-mobile-telecom.sadab-notes-backup.workers.dev/api';
   var host=String(location.hostname||'').toLowerCase();
   var isNetlify=/\.netlify\.app$/.test(host);
