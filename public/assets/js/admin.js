@@ -55,12 +55,3 @@ window.Admin={
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhance);else enhance();
 })();
-/* Load the centralized staff access controller on every admin page. */
-(function(){
- if(!/\/admin\//.test(location.pathname)||/login\.html$/i.test(location.pathname))return;
- if(window.PMT_ACCESS_V3)return;
- const s=document.createElement('script');
- s.src='../assets/js/access-control-v3.js';
- s.async=false;
- document.head.appendChild(s);
-})();
