@@ -1,8 +1,6 @@
 /* PMT staff access controller. Exact permissions, hidden navigation, hard route blocking. */
 (function(){
   if(!/\/admin\//.test(location.pathname)||/\/admin\/login(?:\.html)?$/i.test(location.pathname))return;
-
-  /* Never expose the admin UI while permissions are being resolved. */
   document.documentElement.style.visibility='hidden';
   var finished=false;
   function reveal(){if(finished)return;finished=true;document.documentElement.style.visibility='visible';}
@@ -12,7 +10,7 @@
   var LANDING={dashboard:'dashboard.html',pos:'pos.html',billing:'billing.html',orders_view:'orders.html',orders_edit:'orders.html',repairs:'repairs.html',customers:'customers.html',inventory_view:'inventory.html',inventory_edit:'inventory.html',products_view:'products.html',products_edit:'product-editor-v2.html',website:'editor.html',banners:'banners.html',coupons:'coupons.html',feedback:'feedback.html',analytics:'analytics.html',reports:'monthly-report.html',media:'media.html',settings:'settings.html',security:'security.html',staff:'staff-access.html',backups:'backup.html'};
   function user(){try{return JSON.parse(sessionStorage.getItem('pmt-admin-user')||'null')}catch(e){return null}}
   function perms(u){if(!u)return [];if(String(u.role)==='Owner')return ['*'];var p=u.permissions;if(typeof p==='string'){try{p=JSON.parse(p)}catch(e){p=[]}}return Array.isArray(p)?p.map(String):[]}
-  function ok(p,n){return p.indexOf('*')>=0||p.indexOf(n)>=0}
+  function ok(p,n){if(p.indexOf('*')>=0||p.indexOf(n)>=0)return true;if(n==='products_view'&&p.indexOf('products_edit')>=0)return true;if(n==='inventory_view'&&p.indexOf('inventory_edit')>=0)return true;if(n==='orders_view'&&p.indexOf('orders_edit')>=0)return true;return false}
   function first(p){for(var i=0;i<ORDER.length;i++)if(ok(p,ORDER[i]))return LANDING[ORDER[i]];return null}
   function hide(el){var x=el.closest('li,.nav-item,.sidebar-item,.menu-item,.quick-action,.action-card,.dashboard-card,article,.card')||el;x.style.setProperty('display','none','important');x.setAttribute('aria-hidden','true');x.setAttribute('tabindex','-1')}
   function pageName(h){return String(h||'').split('?')[0].split('#')[0].split('/').pop().toLowerCase().replace(/\.html$/,'')}
