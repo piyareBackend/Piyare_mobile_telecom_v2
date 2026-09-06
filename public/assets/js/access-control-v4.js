@@ -27,18 +27,25 @@
   }
   function first(p){for(var i=0;i<ORDER.length;i++)if(ok(p,ORDER[i]))return LANDING[ORDER[i]];return null}
   function pageName(h){return String(h||'').split('?')[0].split('#')[0].split('/').pop().toLowerCase().replace(/\.html$/,'')}
+  function isAdminPageHref(h){
+    var raw=String(h||'').trim();
+    if(!raw||/^(https?:|mailto:|tel:|javascript:|#)/i.test(raw))return false;
+    if(/^\/admin\//i.test(raw)||/^admin\//i.test(raw))return true;
+    return /^[^/]+\.html(?:[?#].*)?$/i.test(raw);
+  }
   function navItem(el){return el.closest('li,.nav-item,.sidebar-item,.menu-item,.admin-nav-item,.drawer-item')||el}
   function hide(el){var x=navItem(el);x.style.setProperty('display','none','important');x.setAttribute('aria-hidden','true');x.setAttribute('tabindex','-1')}
   function filterNavigation(u){
-    var p=perms(u);
+    var p=perms(u),owner=String(u.role)==='Owner';
     document.documentElement.dataset.pmtRole=String(u.role||'');
     document.querySelectorAll('a[href]').forEach(function(a){
-      var need=PAGE[pageName(a.getAttribute('href'))];
-      if(need&&!ok(p,need))hide(a);
+      var href=String(a.getAttribute('href')||''),name=pageName(href),need=PAGE[name];
+      if(need){if(!owner&&!ok(p,need))hide(a);return;}
+      if(!owner&&isAdminPageHref(href)&&name!=='index')hide(a);
     });
     document.querySelectorAll('[data-permission],[data-pmt-permission],[data-page-permission]').forEach(function(el){
       var n=el.getAttribute('data-permission')||el.getAttribute('data-pmt-permission')||el.getAttribute('data-page-permission');
-      if(n&&!ok(p,n))hide(el);
+      if(n&&!owner&&!ok(p,n))hide(el);
     });
   }
   function ensureObserver(u){
@@ -53,9 +60,10 @@
   }
   function apply(u){
     filterNavigation(u);ensureObserver(u);
-    var p=perms(u),current=pageName(location.pathname)||'dashboard',need=PAGE[current];
-    if(need&&!ok(p,need)){
-      var target=first(p);if(target)location.replace('/admin/'+target);else deny();
+    var p=perms(u),owner=String(u.role)==='Owner',current=pageName(location.pathname)||'dashboard',need=PAGE[current];
+    if(!owner&&(current==='index'||!need||!ok(p,need))){
+      var target=first(p);
+      if(target)location.replace('/admin/'+target);else deny();
       return false;
     }
     resolved=true;reveal();return true;
