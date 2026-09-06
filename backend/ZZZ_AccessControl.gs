@@ -33,15 +33,16 @@ function pmtRolePermissions_(role){return (PMT_ROLE_PERMISSIONS[String(role)]||[
 function pmtParsePermissions_(value,role){
   if(String(role)==='Owner')return ['*'];
   let a=[];try{a=Array.isArray(value)?value:JSON.parse(String(value||'[]'));}catch(e){a=[];}
-  if(!Array.isArray(a)||!a.length)return pmtRolePermissions_(role);
-  const ceiling=pmtRolePermissions_(role);return a.map(String).filter(x=>ceiling.indexOf(x)>=0);
+  if(!Array.isArray(a))a=[];
+  const catalog=Object.keys(PMT_PERMISSION_CATALOG);
+  return a.map(String).filter((x,i,self)=>catalog.indexOf(x)>=0&&self.indexOf(x)===i);
 }
 function pmtPermissionsForUserRow_(row){return pmtParsePermissions_(row&&row[8],String(row&&row[5]||'Support'));}
 function pmtHasPermission_(session,permission){
   if(!session)return false;
   if(String(session.role)==='Owner')return true;
   const p=String(permission||'');
-  const a=Array.isArray(session.permissions)?session.permissions:pmtRolePermissions_(session.role);
+  const a=Array.isArray(session.permissions)?session.permissions:[];
   return a.indexOf(p)>=0;
 }
 function pmtAccessAllowed_(session,action){const p=PMT_ACTION_PERMISSIONS[String(action||'')];return !p||pmtHasPermission_(session,p);}
@@ -61,8 +62,8 @@ function pmtUpdateStaffPermissions_(p,session){
   const targetRole=String(found.data[5]||'Support');
   if(targetRole==='Owner')return J({ok:false,message:'Owner permissions are always full access'});
   let requested=Array.isArray(p&&p.permissions)?p.permissions.map(String):[];
-  const ceiling=pmtRolePermissions_(targetRole);
-  requested=requested.filter((x,i,a)=>ceiling.indexOf(x)>=0&&a.indexOf(x)===i);
+  const catalog=Object.keys(PMT_PERMISSION_CATALOG);
+  requested=requested.filter((x,i,a)=>catalog.indexOf(x)>=0&&a.indexOf(x)===i);
   found.sheet.getRange(found.row,9).setValue(JSON.stringify(requested));
   pmtLogStaffActivity_(session,'staff_permissions_update',String(found.data[1])+' | '+JSON.stringify(requested));
   return J({ok:true,data:{id:String(found.data[0]),permissions:requested}});
@@ -80,7 +81,7 @@ function pmtCreateUser_(p,session){
   if(!username||password.length<10||!name||roleRank_(role)<10||roleRank_(role)>roleRank_(session.role))return J({ok:false,message:'Invalid user data — password needs 10+ characters and role cannot exceed your own.'});
   const s=pmtAccessEnsureSchema_(),salt=Utilities.getUuid(),id=Utilities.getUuid();
   let perms=Array.isArray(p&&p.permissions)?p.permissions.map(String):[];
-  const ceiling=pmtRolePermissions_(role);perms=perms.filter((x,i,a)=>ceiling.indexOf(x)>=0&&a.indexOf(x)===i);
+  const catalog=Object.keys(PMT_PERMISSION_CATALOG);perms=perms.filter((x,i,a)=>catalog.indexOf(x)>=0&&a.indexOf(x)===i);
   s.appendRow([id,username,salt,hash_(password,salt),name,role,'Active',now_(),JSON.stringify(perms),avatar]);
   pmtLogStaffActivity_(session,'staff_create',username+' | '+role);return J({ok:true,id,permissions:perms,avatarUrl:avatar});
 }
@@ -107,7 +108,7 @@ function pmtLogin_(username,password){
 function pmtMyPermissions_(session){
   if(!session)return forbidden_();
   let avatarUrl='';try{const found=pmtUserById_(session.userId);if(found)avatarUrl=String(found.data[9]||'');}catch(e){}
-  return J({ok:true,user:{id:String(session.userId||''),name:String(session.name||''),username:String(session.username||''),role:String(session.role||''),permissions:String(session.role)==='Owner'?['*']:(session.permissions||pmtRolePermissions_(session.role)),avatarUrl,permissionCatalog:PMT_PERMISSION_CATALOG}});
+  return J({ok:true,user:{id:String(session.userId||''),name:String(session.name||''),username:String(session.username||''),role:String(session.role||''),permissions:pmtPermissionsForUserRow_([session.userId,session.username,'','',session.name,session.role,'','','',avatarUrl]),avatarUrl,permissionCatalog:PMT_PERMISSION_CATALOG}});
 }
 function pmtStaffActivity_(p,session){
   if(!session||String(session.role)!=='Owner')return forbidden_();
@@ -175,7 +176,7 @@ function doPost(e){
     if(a==='updateProduct'){const out=updateProduct_(b.payload||{},session);pmtLogStaffActivity_(session,'product_update',String(b.payload&&b.payload.id||''));return out;}
     if(a==='deleteProduct'){const out=deleteProduct_(b.payload||{},session);pmtLogStaffActivity_(session,'product_delete',String(b.payload&&b.payload.id||''));return out;}
     if(a==='createCoupon'){const out=createCoupon_(b.payload||{},session);pmtLogStaffActivity_(session,'coupon_create',String(b.payload&&b.payload.code||''));return out;}
-    if(a==='updateCoupon'){const out=updateCoupon_(b.payload||{},session);pmtLogStaffActivity_(session,'coupon_update',String(b.payload&&b.payload.id||''));return out;}
+    if(a==='updateCoupon'){const out=updateCoupon_(b.payload||{},session);pmtLogStaffActivity_(session,'coupon_update',String(b.payload&&b.payload.code||''));return out;}
     if(a==='updateOrder'){const out=updateOrder_(b.payload||{},session);pmtLogStaffActivity_(session,'order_update',String(b.payload&&b.payload.id||''));return out;}
     if(a==='updateRepair'){const out=updateRepair_(b.payload||{},session);pmtLogStaffActivity_(session,'repair_update',String(b.payload&&b.payload.id||''));return out;}
     if(a==='updateReview'){const out=updateReview_(b.payload||{},session);pmtLogStaffActivity_(session,'review_update',String(b.payload&&b.payload.id||''));return out;}
