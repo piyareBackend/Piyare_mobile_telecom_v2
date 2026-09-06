@@ -5,6 +5,7 @@
   var isNetlify=/\.netlify\.app$/.test(host);
   var isAdmin=/\/admin\//.test(location.pathname);
   var isLogin=/\/admin\/login(?:\.html)?$/i.test(location.pathname);
+  var isStaffAccess=/\/admin\/staff-access(?:\.html)?$/i.test(location.pathname);
   window.PMT_PUBLIC_API_URL=isNetlify?WORKER_API:'/api';
   window.PMT_OWNER_WHATSAPP='';
 
@@ -33,8 +34,14 @@
   function installAccessControl(){
     if(!isAdmin||isLogin||window.__PMT_ACCESS_LOADER)return;
     window.__PMT_ACCESS_LOADER=true;
-    var s=document.createElement('script');s.src='/assets/js/access-control-v4.js?v=7';s.async=false;
+    var s=document.createElement('script');s.src='/assets/js/access-control-v4.js?v=8';s.async=false;
     s.onerror=function(){window.__PMT_ACCESS_LOADER=false};document.head.appendChild(s);
+  }
+  function installStaffPermissionUI(){
+    if(!isStaffAccess||window.__PMT_STAFF_PERMISSION_UI)return;
+    window.__PMT_STAFF_PERMISSION_UI=true;
+    var s=document.createElement('script');s.src='/assets/js/staff-permission-ui.js?v=1';s.async=false;
+    s.onerror=function(){window.__PMT_STAFF_PERMISSION_UI=false};document.head.appendChild(s);
   }
   function syncPhone(data){
     var s=data&&data.site||{};var phone=String(s.whatsapp||window.PMT_OWNER_WHATSAPP||'').replace(/\D/g,'');
@@ -50,7 +57,7 @@
   }
   function init(){
     if(isLogin)return;
-    registerPWA();contact();installRealtimeAdminGet();installAccessControl();setTimeout(installOffline,0);
+    registerPWA();contact();installRealtimeAdminGet();installAccessControl();installStaffPermissionUI();setTimeout(installOffline,0);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
   if(!isLogin){window.addEventListener('pmt-content-updated',contact);window.PMT_SYNC_CONTACT_NUMBER=syncPhone;}
