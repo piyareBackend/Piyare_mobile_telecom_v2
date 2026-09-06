@@ -13,11 +13,20 @@ window.Admin={
   this.api=window.PMT_PUBLIC_API_URL||"/api";localStorage.removeItem("pmt-api-url");
   const d=await this.request({action:"adminLogin",username,password});
   if(!d.token)throw Error(d.message||"Login failed");
-  sessionStorage.setItem("pmt-admin-token",d.token);sessionStorage.setItem("pmt-admin-user",JSON.stringify(d.user||{}));location.href="dashboard.html";
+  sessionStorage.setItem("pmt-admin-token",d.token);sessionStorage.setItem("pmt-admin-user",JSON.stringify(d.user||{}));location.replace("dashboard.html");
  },
  auth(){return sessionStorage.getItem("pmt-admin-token")},
  user(){try{return JSON.parse(sessionStorage.getItem("pmt-admin-user")||"{}")}catch(e){return {}}},
- logout(){const t=this.auth();if(t)this.request({action:"logout",token:t}).catch(()=>{});sessionStorage.removeItem("pmt-admin-token");sessionStorage.removeItem("pmt-admin-user");location.replace("login.html")}
+ logout(){
+  const t=this.auth();
+  /* Clear the client session first. Logout must never depend on the API response. */
+  sessionStorage.removeItem("pmt-admin-token");
+  sessionStorage.removeItem("pmt-admin-user");
+  try{sessionStorage.removeItem("pmt-admin-permissions")}catch(_){}
+  try{localStorage.removeItem("pmt-api-url")}catch(_){}
+  if(t){this.request({action:"logout",token:t}).catch(()=>{});}
+  location.replace("/admin/login.html?loggedout=1");
+ }
 };
 (function(){
  if(location.pathname.endsWith('/login.html')||location.pathname.endsWith('/login'))return;
